@@ -1,0 +1,15 @@
+# Dependencies
+/inventorio-web-backend/node_modules
+
+# Production
+/inventorio-web-backend/dist
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# OS
+.DS_Store
+Thumbs.db
+
