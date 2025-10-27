@@ -1,4 +1,4 @@
-const { Orden_Compra, Proveedor } = require('../models');
+import {Orden_Compra, Proveedor} from '../models';
 
 class OrdenCompraDAO {
   async crearOrden(data) {
@@ -44,4 +44,4 @@ class OrdenCompraDAO {
   }
 }
 
-module.exports = new OrdenCompraDAO();
+export default new OrdenCompraDAO();

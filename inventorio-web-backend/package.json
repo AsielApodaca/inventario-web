@@ -1,9 +1,9 @@
 {
   "name": "inventorio-web-backend",
   "version": "1.0.0",
-  "description": "",
+  "description": "Sistema de inventario backend",
   "main": "src/app.js",
-  "type": "commonjs",
+  "type": "module",
   "scripts": {
     "dev": "nodemon src/app.js",
     "start": "node src/app.js"
@@ -12,14 +12,18 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
+    "express-validator": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.15.2",
     "sequelize": "^6.37.7",
     "sequelize-cli": "^6.6.3"
   },
   "devDependencies": {
+    "lodash": "^4.17.21",
     "nodemon": "^3.1.10"
   }
 }

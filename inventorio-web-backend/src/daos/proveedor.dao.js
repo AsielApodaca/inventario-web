@@ -1,4 +1,4 @@
-const { Proveedor } = require('../models');
+import {Proveedor} from '../models';
 
 class ProveedorDAO {
   async registrarProveedor(data) {
@@ -36,4 +36,4 @@ class ProveedorDAO {
   }
 }
 
-module.exports = new ProveedorDAO();
+export default new ProveedorDAO();
