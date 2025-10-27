@@ -19,7 +19,9 @@ class CategoriaDAO {
 
   async listarSubcategorias(id_padre) {
     try {
-      return await Categoria.findAll({ where: { id_padre } });
+      return await Categoria.findAll({
+        where: { id_categoria_padre: id_padre }
+      });
     } catch (error) {
       throw error;
     }
