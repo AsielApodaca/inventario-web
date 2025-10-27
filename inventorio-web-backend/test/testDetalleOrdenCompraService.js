@@ -1,4 +1,4 @@
-const detalleOrdenCompraService = require('../services/detalleOrdenCompraService');
+import detalleOrdenCompraService from '../services/detalleOrdenCompraService';
 
 async function test() {
   try {

@@ -1,4 +1,4 @@
-const proveedorDAO = require('../daos/proveedor.dao.js');
+import proveedorDAO from '../daos/proveedor.dao.js';
 class ProveedorService {
   async registrarProveedor(data) {
     if (!data.nombre || data.nombre.trim() === '') {
@@ -163,4 +163,4 @@ class ProveedorService {
   }
 }
 
-module.exports = new ProveedorService();
+export default new ProveedorService();

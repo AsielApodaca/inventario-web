@@ -1,4 +1,4 @@
-const categoriaDAO = require('../daos/categoria.dao');
+import categoriaDAO from '../daos/categoria.dao';
 
 class CategoriaService {
   async crearCategoria(data) {
@@ -86,4 +86,4 @@ class CategoriaService {
   }
 }
 
-module.exports = new CategoriaService();
+export default new CategoriaService();

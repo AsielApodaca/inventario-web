@@ -1,6 +1,6 @@
-const productoService = require('../services/productoService');
-const categoriaService = require('../services/categoriaService');
-const proveedorService = require('../services/proveedorService');
+import productoService from '../services/productoService';
+import categoriaService from '../services/categoriaService';
+import proveedorService from '../services/proveedorService';
 
 async function testCategoriaService() {
   console.log('\n=== TEST: CATEGORIA SERVICE ===');
@@ -102,4 +102,4 @@ if (require.main === module) {
   runAllTests();
 }
 
-module.exports = { runAllTests };
+export default { runAllTests };

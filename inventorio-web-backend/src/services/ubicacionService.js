@@ -1,6 +1,6 @@
-const ubicacionDAO = require('../daos/ubicacionDAO');
-const almacenDAO = require('../daos/almacenDAO');
-const inventarioDAO = require('../daos/inventarioDAO');
+import ubicacionDAO from '../daos/ubicacionDAO';
+import almacenDAO from '../daos/almacenDAO';
+import inventarioDAO from '../daos/inventarioDAO';
 
 class UbicacionService {
   async crearUbicacion(data) {
@@ -242,4 +242,4 @@ class UbicacionService {
   }
 }
 
-module.exports = new UbicacionService();
+export default new UbicacionService();

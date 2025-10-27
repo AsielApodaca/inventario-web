@@ -1,7 +1,7 @@
-const productoDAO = require('../daos/producto.dao.js');
-const categoriaDAO = require('../daos/categoria.dao.js');
-const proveedorDAO = require('../daos/proveedor.dao.js');
-const { Op } = require('sequelize');
+import productoDAO from '../daos/producto.dao.js';
+import categoriaDAO from '../daos/categoria.dao.js';
+import proveedorDAO from '../daos/proveedor.dao.js';
+import {Op} from 'sequelize';
 
 async function registrarProducto(data) {
   if (!data.nombre || data.nombre.trim() === '') {
@@ -205,7 +205,7 @@ async function obtenerProductosBajoStock(stock_minimo = 10) {
   return productos.filter(p => p.stock_minimo && p.stock_minimo < stock_minimo);
 }
 
-module.exports = {
+export default {
   registrarProducto,
   listarProductos,
   buscarPorCodigo,

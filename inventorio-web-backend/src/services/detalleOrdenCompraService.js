@@ -1,5 +1,5 @@
-const detalleOrdenCompraDAO = require('../daos/detalleOrdenCompraDAO');
-const productoDAO = require('../daos/productoDAO'); 
+import detalleOrdenCompraDAO from '../daos/detalleOrdenCompraDAO';
+import productoDAO from '../daos/productoDAO';
 
 class DetalleOrdenCompraService {
   async agregarDetalle(data) {
@@ -85,4 +85,4 @@ class DetalleOrdenCompraService {
   }
 }
 
-module.exports = new DetalleOrdenCompraService();
+export default new DetalleOrdenCompraService();
