@@ -1,4 +1,4 @@
-import {sequelize} from '../models';
+import {sequelize} from '../src/models/index.js';
 
 // Importar todos los DAOs
 import UsuarioDAO from '../daos/usuario.dao';
