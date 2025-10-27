@@ -1,4 +1,4 @@
-const { Categoria } = require('../models');
+import {Categoria} from '../models';
 
 class CategoriaDAO {
   async crearCategoria(data) {
@@ -36,4 +36,4 @@ class CategoriaDAO {
   }
 }
 
-module.exports = new CategoriaDAO();
+export default new CategoriaDAO();

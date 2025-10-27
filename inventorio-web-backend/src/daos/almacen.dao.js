@@ -1,4 +1,4 @@
-const { Almacen } = require('../models');
+import {Almacen} from '../models';
 
 class AlmacenDAO {
   async crearAlmacen(data) {
@@ -28,4 +28,4 @@ class AlmacenDAO {
   }
 }
 
-module.exports = new AlmacenDAO();
+export default new AlmacenDAO();

@@ -1,6 +1,6 @@
-const { Inventario, MovimientoInventario, Producto } = require('../models');
-const Orden_Compra = require('../daos/ordencompra.dao');
-const { Op } = require('sequelize');
+import {Inventario, MovimientoInventario, Producto} from '../models';
+import Orden_Compra from '../daos/ordencompra.dao';
+import {Op} from 'sequelize';
 
 class ReportesDAO {
   async reporteStockTotal() {
@@ -45,4 +45,4 @@ class ReportesDAO {
   }
 }
 
-module.exports = new ReportesDAO();
+export default new ReportesDAO();

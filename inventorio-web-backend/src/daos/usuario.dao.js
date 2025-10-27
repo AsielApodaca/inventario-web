@@ -1,4 +1,4 @@
-const { Usuario } = require('../models');
+import {Usuario} from '../models';
 
 class UsuarioDAO {
   async crearUsuario(data) {
@@ -55,4 +55,4 @@ class UsuarioDAO {
   }
 }
 
-module.exports = new UsuarioDAO();
+export default new UsuarioDAO();

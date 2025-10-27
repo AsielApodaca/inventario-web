@@ -1,4 +1,4 @@
-const { Producto, Categoria, Proveedor } = require('../models');
+import {Producto, Categoria, Proveedor} from '../models';
 
 class ProductoDAO {
   async registrarProducto(data) {
@@ -66,4 +66,4 @@ class ProductoDAO {
   }
 }
 
-module.exports = new ProductoDAO();
+export default new ProductoDAO();

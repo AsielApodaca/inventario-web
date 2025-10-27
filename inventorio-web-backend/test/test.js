@@ -1,18 +1,19 @@
-const { sequelize } = require('../models');
+import {sequelize} from '../models';
 
 // Importar todos los DAOs
-const UsuarioDAO = require('../daos/usuario.dao');
-const CategoriaDAO = require('../daos/categoria.dao');
-const ProveedorDAO = require('../daos/proveedor.dao');
-const ProductoDAO = require('../daos/producto.dao');
-const AlmacenDAO = require('../daos/almacen.dao');
-const UbicacionDAO = require('../daos/ubicacion.dao');
-const InventarioDAO = require('../daos/inventario.dao');
-const MovimientoInventarioDAO = require('../daos/movimientoinventario.dao');
-const OrdenCompraDAO = require('../daos/ordencompra.dao');
-const DetalleOrdenCompraDAO = require('../daos/detalleordencompra.dao');
-const ReportesDAO = require('../daos/reportes.dao');
-const { describe } = require('node:test');
+import UsuarioDAO from '../daos/usuario.dao';
+
+import CategoriaDAO from '../daos/categoria.dao';
+import ProveedorDAO from '../daos/proveedor.dao';
+import ProductoDAO from '../daos/producto.dao';
+import AlmacenDAO from '../daos/almacen.dao';
+import UbicacionDAO from '../daos/ubicacion.dao';
+import InventarioDAO from '../daos/inventario.dao';
+import MovimientoInventarioDAO from '../daos/movimientoinventario.dao';
+import OrdenCompraDAO from '../daos/ordencompra.dao';
+import DetalleOrdenCompraDAO from '../daos/detalleordencompra.dao';
+import ReportesDAO from '../daos/reportes.dao';
+import {describe} from 'node:test';
 
 async function testFlujoCompleto() {
   try {

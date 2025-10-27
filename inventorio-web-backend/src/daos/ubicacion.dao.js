@@ -1,4 +1,4 @@
-const { Ubicacion } = require('../models');
+import {Ubicacion} from '../models';
 
 class UbicacionDAO {
   async crearUbicacion(data) {
@@ -28,4 +28,4 @@ class UbicacionDAO {
   }
 }
 
-module.exports = new UbicacionDAO();
+export default new UbicacionDAO();
