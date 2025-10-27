@@ -4,7 +4,7 @@ import db from './models/index.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { requestLogger } from './middleware/logger.js';
 import { responseFormatter } from './middleware/responseFormatter.js';
-import { authRoutes, productRoutes } from './routes/index.js';
+import routes from './routes/index.js';
 
 const app = express();
 
@@ -23,9 +23,8 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Configurar rutas de la API
-app.use('/api/auth', authRoutes);
-app.use('/api/products', productRoutes);
+// Configurar todas las rutas de la API
+app.use('/api', routes);
 
 // Middleware para rutas no encontradas
 app.use('*', notFoundHandler);
@@ -44,6 +43,7 @@ const startServer = async () => {
     const PORT = process.env.PORT || 3000;
     app.listen(PORT, () => {
       console.log(`🚀 Servidor ejecutándose en http://localhost:${PORT}`);
+      console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
     });
   } catch (error) {
     console.error('❌ Error iniciando el servidor:', error);
