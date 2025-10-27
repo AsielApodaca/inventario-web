@@ -50,7 +50,6 @@ module.exports = (sequelize, DataTypes) => {
     precio_compra: DataTypes.FLOAT,
     precio_venta: DataTypes.FLOAT,
     stock_minimo: DataTypes.FLOAT,
-    stock_maximo: DataTypes.FLOAT
   }, {
     sequelize,
     modelName: 'Producto',
