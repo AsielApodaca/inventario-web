@@ -1,6 +1,6 @@
-const movimientoInventarioDAO = require('../daos/movimientoInventarioDAO');
-const inventarioDAO = require('../daos/inventarioDAO');
-const { Op } = require('sequelize');
+import movimientoInventarioDAO from '../daos/movimientoInventarioDAO';
+import inventarioDAO from '../daos/inventarioDAO';
+import {Op} from 'sequelize';
 
 class MovimientoInventarioService {
   TIPOS_MOVIMIENTO = {
@@ -157,4 +157,4 @@ class MovimientoInventarioService {
   }
 }
 
-module.exports = new MovimientoInventarioService();
+export default new MovimientoInventarioService();

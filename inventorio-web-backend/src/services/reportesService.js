@@ -1,9 +1,9 @@
-const reportesDAO = require('../daos/reportesDAO');
-const inventarioDAO = require('../daos/inventarioDAO');
-const productoDAO = require('../daos/productoDAO');
-const movimientoInventarioDAO = require('../daos/movimientoInventarioDAO');
-const ordenCompraDAO = require('../daos/ordenCompraDAO');
-const { Op } = require('sequelize');
+import reportesDAO from '../daos/reportesDAO';
+import inventarioDAO from '../daos/inventarioDAO';
+import productoDAO from '../daos/productoDAO';
+import movimientoInventarioDAO from '../daos/movimientoInventarioDAO';
+import ordenCompraDAO from '../daos/ordenCompraDAO';
+import {Op} from 'sequelize';
 
 class ReportesService {
   async reporteStockTotal(opciones = {}) {
@@ -375,4 +375,4 @@ class ReportesService {
   }
 }
 
-module.exports = new ReportesService();
+export default new ReportesService();

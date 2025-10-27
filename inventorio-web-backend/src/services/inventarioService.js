@@ -1,4 +1,4 @@
-const inventarioDAO = require('../daos/inventarioDAO');
+import inventarioDAO from '../daos/inventarioDAO';
 
 class InventarioService {
   async registrarProductoEnUbicacion(data) {
@@ -117,4 +117,4 @@ class InventarioService {
   }
 }
 
-module.exports = new InventarioService();
+export default new InventarioService();

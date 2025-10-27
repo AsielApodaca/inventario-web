@@ -1,4 +1,4 @@
-const almacenDAO = require('../daos/almacen.dao');
+import almacenDAO from '../daos/almacen.dao';
 
 class AlmacenService {
   async crearAlmacen(data) {
@@ -48,4 +48,4 @@ class AlmacenService {
   }
 }
 
-module.exports = new AlmacenService();
+export default new AlmacenService();

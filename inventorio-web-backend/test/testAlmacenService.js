@@ -1,4 +1,4 @@
-const almacenService = require('../services/almacenService');
+import almacenService from '../services/almacenService';
 
 (async () => {
   try {

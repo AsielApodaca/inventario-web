@@ -1,6 +1,6 @@
-const ordenCompraDAO = require('../daos/ordenCompraDAO');
-const detalleOrdenCompraDAO = require('../daos/detalleOrdenCompraDAO');
-const proveedorDAO = require('../daos/proveedorDAO');
+import ordenCompraDAO from '../daos/ordenCompraDAO';
+import detalleOrdenCompraDAO from '../daos/detalleOrdenCompraDAO';
+import proveedorDAO from '../daos/proveedorDAO';
 
 class OrdenCompraService {
   ESTADOS = {
@@ -166,4 +166,4 @@ class OrdenCompraService {
   }
 }
 
-module.exports = new OrdenCompraService();
+export default new OrdenCompraService();

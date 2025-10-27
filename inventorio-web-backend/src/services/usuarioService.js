@@ -1,6 +1,6 @@
-const usuarioDAO = require('../daos/usuario.dao.js');
-const bcrypt = require('bcryptjs'); 
-const jwt = require('jsonwebtoken'); 
+import usuarioDAO from '../daos/usuario.dao.js';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 
 class UsuarioService {
   ROLES = {
@@ -367,4 +367,4 @@ class UsuarioService {
   }
 }
 
-module.exports = new UsuarioService();
+export default new UsuarioService();

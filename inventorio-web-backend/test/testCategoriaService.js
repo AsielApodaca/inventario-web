@@ -1,4 +1,4 @@
-const categoriaService = require('../services/categoriaService');
+import categoriaService from '../services/categoriaService';
 
 (async () => {
   console.log('=== Creando categoría ===');
