@@ -1,4 +1,4 @@
-import almacenDAO from '../daos/almacen.dao';
+import almacenDAO from '../daos/almacen.dao.js';
 
 class AlmacenService {
   async crearAlmacen(data) {

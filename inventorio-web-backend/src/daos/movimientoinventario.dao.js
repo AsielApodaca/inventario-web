@@ -1,4 +1,5 @@
-import {MovimientoInventario, Producto, Usuario} from '../models';
+import db from '../models/index.js';
+const { MovimientoInventario, Producto, Usuario } = db;
 
 class MovimientoInventarioDAO {
   async registrarMovimiento(data) {

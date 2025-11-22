@@ -5,7 +5,7 @@ import {
   validateCreateAlmacen, 
   validateUpdateAlmacen, 
   validateAlmacenId 
-} from '../middleware/validation/warehouseValidation.js';
+} from '../middleware/validation/almacenValidation.js';
 
 const router = express.Router();
 

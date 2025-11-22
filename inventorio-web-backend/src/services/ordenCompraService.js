@@ -1,6 +1,6 @@
-import ordenCompraDAO from '../daos/ordenCompraDAO';
-import detalleOrdenCompraDAO from '../daos/detalleOrdenCompraDAO';
-import proveedorDAO from '../daos/proveedorDAO';
+import ordenCompraDAO from '../daos/ordencompra.dao.js';
+import detalleOrdenCompraDAO from '../daos/detalleordencompra.dao.js';
+import proveedorDAO from '../daos/proveedor.dao.js';
 
 class OrdenCompraService {
   ESTADOS = {

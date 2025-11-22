@@ -1,4 +1,4 @@
-import categoriaDAO from '../daos/categoria.dao';
+import categoriaDAO from '../daos/categoria.dao.js';
 
 class CategoriaService {
   async crearCategoria(data) {

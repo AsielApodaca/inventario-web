@@ -1,4 +1,5 @@
-import {Ubicacion} from '../models';
+import db from '../models/index.js';
+const { Ubicacion } = db;
 
 class UbicacionDAO {
   async crearUbicacion(data) {

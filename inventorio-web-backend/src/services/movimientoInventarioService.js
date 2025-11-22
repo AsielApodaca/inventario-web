@@ -1,5 +1,5 @@
-import movimientoInventarioDAO from '../daos/movimientoInventarioDAO';
-import inventarioDAO from '../daos/inventarioDAO';
+import movimientoInventarioDAO from '../daos/movimientoinventario.dao.js';
+import inventarioDAO from '../daos/inventario.dao.js';
 import {Op} from 'sequelize';
 
 class MovimientoInventarioService {

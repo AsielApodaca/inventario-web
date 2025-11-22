@@ -1,4 +1,5 @@
-import {Detalle_Orden_Compra, Producto} from '../models';
+import db from '../models/index.js';
+const { Detalle_Orden_Compra, Producto } = db;
 
 class DetalleOrdenCompraDAO {
   async agregarDetalle(data) {

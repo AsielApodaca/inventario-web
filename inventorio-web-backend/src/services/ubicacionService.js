@@ -1,6 +1,6 @@
-import ubicacionDAO from '../daos/ubicacionDAO';
-import almacenDAO from '../daos/almacenDAO';
-import inventarioDAO from '../daos/inventarioDAO';
+import ubicacionDAO from '../daos/ubicacion.dao.js';
+import almacenDAO from '../daos/almacen.dao.js';
+import inventarioDAO from '../daos/inventario.dao.js';
 
 class UbicacionService {
   async crearUbicacion(data) {

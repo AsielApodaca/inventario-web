@@ -1,4 +1,5 @@
-import {Categoria} from '../models';
+import db from '../models/index.js';
+const {Categoria} = db;
 
 class CategoriaDAO {
   async crearCategoria(data) {

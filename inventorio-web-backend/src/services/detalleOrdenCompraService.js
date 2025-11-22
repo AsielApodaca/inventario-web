@@ -1,5 +1,5 @@
-import detalleOrdenCompraDAO from '../daos/detalleOrdenCompraDAO';
-import productoDAO from '../daos/productoDAO';
+import detalleOrdenCompraDAO from '../daos/detalleordencompra.dao.js';
+import productoDAO from '../daos/producto.dao.js';
 
 class DetalleOrdenCompraService {
   async agregarDetalle(data) {

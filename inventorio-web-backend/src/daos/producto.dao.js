@@ -1,4 +1,5 @@
-import {Producto, Categoria, Proveedor} from '../models';
+import db from '../models/index.js';
+const { Producto, Categoria, Proveedor } = db;
 
 class ProductoDAO {
   async registrarProducto(data) {

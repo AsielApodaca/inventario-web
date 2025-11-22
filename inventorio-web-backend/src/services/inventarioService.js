@@ -1,4 +1,4 @@
-import inventarioDAO from '../daos/inventarioDAO';
+import inventarioDAO from '../daos/inventario.dao.js';
 
 class InventarioService {
   async registrarProductoEnUbicacion(data) {

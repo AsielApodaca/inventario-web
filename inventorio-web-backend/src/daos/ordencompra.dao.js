@@ -1,4 +1,5 @@
-import {Orden_Compra, Proveedor} from '../models';
+import db from '../models/index.js';
+const { Orden_Compra, Proveedor } = db;
 
 class OrdenCompraDAO {
   async crearOrden(data) {

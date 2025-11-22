@@ -27,7 +27,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api', routes);
 
 // Middleware para rutas no encontradas
-app.use('*', notFoundHandler);
+app.use(notFoundHandler);
 
 // Middleware de manejo de errores (SIEMPRE al final)
 app.use(errorHandler);

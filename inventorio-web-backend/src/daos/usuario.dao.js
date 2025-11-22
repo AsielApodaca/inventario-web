@@ -1,4 +1,5 @@
-import {Usuario} from '../models';
+import db from '../models/index.js';
+const { Usuario } = db;
 
 class UsuarioDAO {
   async crearUsuario(data) {

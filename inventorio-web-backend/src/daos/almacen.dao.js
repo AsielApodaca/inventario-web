@@ -1,4 +1,5 @@
-import {Almacen} from '../models';
+import db from '../models/index.js';
+const {Almacen} = db;
 
 class AlmacenDAO {
   async crearAlmacen(data) {

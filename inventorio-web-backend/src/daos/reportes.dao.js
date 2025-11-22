@@ -1,6 +1,7 @@
-import {Inventario, MovimientoInventario, Producto} from '../models';
 import Orden_Compra from '../daos/ordencompra.dao';
 import {Op} from 'sequelize';
+import db from '../models/index.js';
+const { Inventario, MovimientoInventario, Producto } = db;
 
 class ReportesDAO {
   async reporteStockTotal() {
