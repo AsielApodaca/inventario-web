@@ -1,8 +1,8 @@
-import reportesDAO from '../daos/reportesDAO';
-import inventarioDAO from '../daos/inventarioDAO';
-import productoDAO from '../daos/productoDAO';
-import movimientoInventarioDAO from '../daos/movimientoInventarioDAO';
-import ordenCompraDAO from '../daos/ordenCompraDAO';
+import reportesDAO from '../daos/reportes.dao.js';
+import inventarioDAO from '../daos/inventario.dao.js';
+import productoDAO from '../daos/producto.dao.js';
+import movimientoInventarioDAO from '../daos/movimientoinventario.dao.js';
+import ordenCompraDAO from '../daos/ordencompra.dao.js';
 import {Op} from 'sequelize';
 
 class ReportesService {
