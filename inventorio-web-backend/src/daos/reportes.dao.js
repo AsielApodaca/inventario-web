@@ -1,4 +1,4 @@
-import Orden_Compra from '../daos/ordencompra.dao';
+import Orden_Compra from '../daos/ordencompra.dao.js';
 import {Op} from 'sequelize';
 import db from '../models/index.js';
 const { Inventario, MovimientoInventario, Producto } = db;
