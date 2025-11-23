@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import process from 'process';
 import Sequelize from 'sequelize';
 
@@ -10,8 +10,9 @@ const __dirname = path.dirname(__filename);
 const basename = path.basename(__filename);
 const env = process.env.NODE_ENV || 'development';
 
-import configFile from '../../config/config.json' with { type: 'json' };
-const config = configFile[env];
+const configPath = path.join(__dirname, '../../config/config.json');
+const configRaw = fs.readFileSync(configPath, 'utf8');
+const config = JSON.parse(configRaw)[env];
 
 const db = {};
 
@@ -35,7 +36,8 @@ const files = fs
   });
 
 for (const file of files) {
-  const { default: modelFunc } = await import(path.join(__dirname, file));
+  const filePath = path.join(__dirname, file);
+  const { default: modelFunc } = await import(pathToFileURL(filePath).href);
   const model = modelFunc(sequelize, Sequelize.DataTypes);
   db[model.name] = model;
 }
@@ -51,3 +53,4 @@ db.sequelize = sequelize;
 db.Sequelize = Sequelize;
 
 export default db;
+export { sequelize, Sequelize };

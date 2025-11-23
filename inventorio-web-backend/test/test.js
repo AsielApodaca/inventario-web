@@ -1,18 +1,18 @@
 import {sequelize} from '../src/models/index.js';
 
 // Importar todos los DAOs
-import UsuarioDAO from '../daos/usuario.dao';
+import UsuarioDAO from '../src/daos/usuario.dao.js';
 
-import CategoriaDAO from '../daos/categoria.dao';
-import ProveedorDAO from '../daos/proveedor.dao';
-import ProductoDAO from '../daos/producto.dao';
-import AlmacenDAO from '../daos/almacen.dao';
-import UbicacionDAO from '../daos/ubicacion.dao';
-import InventarioDAO from '../daos/inventario.dao';
-import MovimientoInventarioDAO from '../daos/movimientoinventario.dao';
-import OrdenCompraDAO from '../daos/ordencompra.dao';
-import DetalleOrdenCompraDAO from '../daos/detalleordencompra.dao';
-import ReportesDAO from '../daos/reportes.dao';
+import CategoriaDAO from '../src/daos/categoria.dao.js';
+import ProveedorDAO from '../src/daos/proveedor.dao.js';
+import ProductoDAO from '../src/daos/producto.dao.js';
+import AlmacenDAO from '../src/daos/almacen.dao.js';
+import UbicacionDAO from '../src/daos/ubicacion.dao.js';
+import InventarioDAO from '../src/daos/inventario.dao.js';
+import MovimientoInventarioDAO from '../src/daos/movimientoinventario.dao.js';
+import OrdenCompraDAO from '../src/daos/ordencompra.dao.js';
+import DetalleOrdenCompraDAO from '../src/daos/detalleordencompra.dao.js';
+import ReportesDAO from '../src/daos/reportes.dao.js';
 import {describe} from 'node:test';
 
 async function testFlujoCompleto() {

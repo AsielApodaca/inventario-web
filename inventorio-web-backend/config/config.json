@@ -1,7 +1,7 @@
 {
   "development": {
     "username": "root",
-    "password": "root",
+    "password": "3Tristestigres",
     "database": "inventoryweb",
     "host": "127.0.0.1",
     "dialect": "mysql"
