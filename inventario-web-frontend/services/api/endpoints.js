@@ -1,33 +1,42 @@
-const API_BASE_URL = "http://localhost:3000/api"
-
 export const ENDPOINTS = {
   AUTH: {
-    LOGIN: `${API_BASE_URL}/auth/login`,
-    REGISTER: `${API_BASE_URL}/auth/register`,
-    VERIFY: `${API_BASE_URL}/auth/verify`,
-    LOGOUT: `${API_BASE_URL}/auth/logout`,
+    LOGIN: "/auth/login",
+    REGISTER: "/auth/register",
+    VERIFY: "/auth/verify",
+    LOGOUT: "/auth/logout",
   },
   PRODUCTS: {
-    BASE: `${API_BASE_URL}/products`,
-    SEARCH: `${API_BASE_URL}/products/search`,
-    BY_CATEGORY: `${API_BASE_URL}/products/category`,
+    BASE: "/productos",
+    SEARCH: "/productos/buscar",
+    BY_CATEGORY: "/productos/categoria",
+    BY_CODE: "/productos/codigo",
+    LOW_STOCK: "/productos/bajo-stock",
   },
   CATEGORIES: {
-    BASE: `${API_BASE_URL}/categories`,
+    BASE: "/categorias",
   },
   SUPPLIERS: {
-    BASE: `${API_BASE_URL}/suppliers`,
+    BASE: "/proveedores",
   },
   INVENTORY: {
-    BASE: `${API_BASE_URL}/inventory`,
-    TRANSFER: `${API_BASE_URL}/inventory/transfer`,
-    ADJUST: `${API_BASE_URL}/inventory/adjust`,
+    BASE: "/inventario",
+    TRANSFER: "/inventario/transferir",
+    ADJUST: "/inventario/ajustar",
   },
   ORDERS: {
-    BASE: `${API_BASE_URL}/orders`,
+    BASE: "/ordenes-compra",
   },
   MOVEMENTS: {
-    BASE: `${API_BASE_URL}/movements`,
-    REPORTS: `${API_BASE_URL}/movements/reports`,
+    BASE: "/movimientos-inventario",
+    REPORTS: "/movimientos-inventario/reporte",
   },
-}
+  USERS: {
+    BASE: "/usuarios",
+  },
+  LOCATIONS: {
+    BASE: "/ubicaciones",
+  },
+  WAREHOUSES: {
+    BASE: "/almacenes",
+  },
+};
