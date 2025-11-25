@@ -1,0 +1,72 @@
+:host {
+  display: block;
+  width: 250px;
+  height: 100%;
+  background: #ffffff;
+  border-right: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+}
+.logo {
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+.logo-icon {
+  width: 32px;
+  height: 32px;
+  background: #4338ca;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+}
+.logo-text {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #111827;
+}
+.nav {
+  padding: 1.5rem 1rem;
+  flex: 1;
+}
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  color: #4b5563;
+  text-decoration: none;
+  border-radius: 0.5rem;
+  margin-bottom: 0.5rem;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+.nav-link:hover {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+.nav-link.active {
+  background-color: #e0e7ff;
+  color: #4338ca;
+  font-weight: 500;
+}
+.nav-section {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: #9ca3af;
+  margin: 1.5rem 0 0.5rem 1rem;
+  letter-spacing: 0.05em;
+}
+.bottom-actions {
+  padding: 1.5rem;
+  border-top: 1px solid #f3f4f6;
+}
+svg {
+  width: 20px;
+  height: 20px;
+}
