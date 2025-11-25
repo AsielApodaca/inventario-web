@@ -73,9 +73,8 @@ class SuppliersMFE extends HTMLElement {
 
   render() {
     this.shadowRoot.innerHTML = `
-     <link rel="stylesheet" href="/styles/header.css">
-<link rel="stylesheet" href="/styles/sidebar.css">
-
+      <link rel="stylesheet" href="styles/global.css">
+      <link rel="stylesheet" href="styles/suppliers.css">
 
       <div class="section-header" style="margin-bottom: 1.5rem;">
          <h1 style="font-size: 1.5rem; font-weight: 700;">Suppliers Management</h1>

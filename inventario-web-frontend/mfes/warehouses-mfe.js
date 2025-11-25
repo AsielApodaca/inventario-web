@@ -257,9 +257,8 @@ class WarehousesMFE extends HTMLElement {
 
   render() {
     this.shadowRoot.innerHTML = `
-      <link rel="stylesheet" href="/styles/header.css">
-<link rel="stylesheet" href="/styles/sidebar.css">
-
+      <link rel="stylesheet" href="styles/global.css">
+      <link rel="stylesheet" href="styles/warehouses.css">
 
       <div class="loading-overlay">
         <div class="spinner"></div>
