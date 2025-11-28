@@ -84,12 +84,20 @@ export const detalleOrdenCompraController = {
     try {
       const { id } = req.params;
       
-      // Como el service no tiene eliminación implementada, informamos al cliente
-      return res.status(501).json({
-        status: 'error',
-        message: 'Funcionalidad de eliminación no implementada en el servicio'
+      const resultado = await DetalleOrdenCompraService.eliminarDetalle(parseInt(id));
+      
+      res.status(200).json({
+        status: 'success',
+        message: resultado.mensaje
       });
     } catch (error) {
+      if (error.message.includes('inválido') || error.message.includes('no encontrado')) {
+        const statusCode = error.message.includes('no encontrado') ? 404 : 400;
+        return res.status(statusCode).json({
+          status: 'error',
+          message: error.message
+        });
+      }
       next(error);
     }
   },
