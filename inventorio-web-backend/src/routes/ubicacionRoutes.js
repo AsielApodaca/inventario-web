@@ -4,8 +4,7 @@ import { authenticateToken, requireAdmin } from '../middleware/auth.js';
 import { 
   validateCreateUbicacion,
   validateUpdateUbicacion,
-  validateUbicacionId,
-  validateUbicacionFilters
+  validateUbicacionId
 } from '../middleware/validation/ubicacionValidation.js';
 
 const router = express.Router();
@@ -21,8 +20,5 @@ router.get('/:id', validateUbicacionId, ubicacionController.getUbicacionById);
 
 // PUT /api/ubicaciones/:id - Actualizar ubicación
 router.put('/:id', requireAdmin, validateUbicacionId, validateUpdateUbicacion, ubicacionController.updateUbicacion);
-
-// PATCH /api/ubicaciones/:id/estado - Cambiar estado de la ubicación
-router.patch('/:id/estado', requireAdmin, validateUbicacionId, ubicacionController.changeEstadoUbicacion);
 
 export default router;
