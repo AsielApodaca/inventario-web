@@ -102,6 +102,12 @@ class MovimientoInventarioService {
       throw new Error('La fecha de inicio no puede ser mayor a la fecha fin');
     }
 
+    // Ajustar fechaInicio al inicio del día (00:00:00)
+    fechaInicio.setHours(0, 0, 0, 0);
+    
+    // Ajustar fechaFin al final del día (23:59:59)
+    fechaFin.setHours(23, 59, 59, 999);
+
     const rango = {
       [Op.between]: [fechaInicio, fechaFin]
     };
