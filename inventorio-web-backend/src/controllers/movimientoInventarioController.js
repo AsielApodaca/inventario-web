@@ -320,5 +320,26 @@ export const movimientoInventarioController = {
       }
       next(error);
     }
-  }
+  },
+
+  // GET /api/movimientos-inventario
+  getAllMovimientos: async (req, res, next) => {
+    try {
+      const resultado = await MovimientoInventarioService.consultarPorFecha(
+        '2000-01-01',
+        new Date().toISOString().split('T')[0]
+      );
+      
+      res.status(200).json({
+        status: 'success',
+        data: resultado.movimientos,
+        metadata: {
+          resumen: resultado.resumen
+        },
+        count: resultado.movimientos.length
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
 };
