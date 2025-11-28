@@ -2,6 +2,11 @@ import apiClient from "./api/apiClient.js"
 import { ENDPOINTS } from "./api/endpoints.js"
 
 export const InventoryService = {
+  // GET /inventario/stock-total
+  async getStockTotal() {
+    return await apiClient.get(`${ENDPOINTS.INVENTORY.BASE}/stock-total`)
+  },
+
   // GET /inventario/:id
   async getById(id) {
     return await apiClient.get(`${ENDPOINTS.INVENTORY.BASE}/${id}`)
