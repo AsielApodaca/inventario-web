@@ -15,6 +15,12 @@
   </style>
 </head>
 <body style="display: flex; margin: 0;">
+  <!-- Verificar autenticación antes de cargar -->
+  <script>
+    if (!localStorage.getItem('token')) {
+      window.location.href = '/login.html';
+    }
+  </script>
   <app-sidebar></app-sidebar>
   <div style="flex: 1;">
     <app-header></app-header>

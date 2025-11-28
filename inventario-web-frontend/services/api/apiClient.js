@@ -1,6 +1,4 @@
 // Create Axios Instance
-// Assuming axios is loaded globally via CDN in index.html, but we try to access it safely.
-// If using modules, we might import it. Here we use window.axios.
 const axiosInstance = window.axios.create({
   baseURL: "http://localhost:3000/api",
   timeout: 30000,
@@ -31,11 +29,17 @@ axiosInstance.interceptors.response.use(
 
     // Handle 401 Unauthorized
     if (error.response && error.response.status === 401 && !originalRequest._retry) {
-      // Logic to refresh token could go here.
-      // For now, logout.
+      originalRequest._retry = true
+      
+      // Limpiar credenciales
       localStorage.removeItem("token")
       localStorage.removeItem("user")
-      window.location.reload()
+      
+      // Redirigir al login solo si no estamos ya en login
+      if (!window.location.pathname.includes('login')) {
+        window.location.href = '/login.html'
+      }
+      
       return Promise.reject(error)
     }
 
