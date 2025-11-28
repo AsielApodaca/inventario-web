@@ -10,46 +10,51 @@ export default {
         type: Sequelize.INTEGER
       },
       codigo_barras: {
-        type: Sequelize.STRING
+        type: Sequelize.STRING,
+        unique: true
       },
       nombre: {
-        type: Sequelize.STRING
+        type: Sequelize.STRING,
+        allowNull: false
       },
       descripcion: {
         type: Sequelize.STRING
       },
       id_categoria: {
         type: Sequelize.INTEGER,
-        allowNull: false,
+        allowNull: true,
         references: {
-
-          model: 'Categoria',
+          model: 'Categoria', // Nombre correcto de la tabla
           key: 'id'
-
-        }
-
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'SET NULL'
       },
       id_proveedor: {
         type: Sequelize.INTEGER,
-        allowNull: false,
+        allowNull: true,
         references: {
-
-          model: 'Proveedors',
+          model: 'Proveedors', // Sequelize pluraliza automáticamente
           key: 'id'
-
-        }
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'SET NULL'
       },
       precio_compra: {
-        type: Sequelize.FLOAT
+        type: Sequelize.FLOAT,
+        defaultValue: 0
       },
       precio_venta: {
-        type: Sequelize.FLOAT
+        type: Sequelize.FLOAT,
+        defaultValue: 0
       },
       stock_minimo: {
-        type: Sequelize.FLOAT
+        type: Sequelize.FLOAT,
+        defaultValue: 0
       },
       stock_maximo: {
-        type: Sequelize.FLOAT
+        type: Sequelize.FLOAT,
+        defaultValue: 0
       },
       createdAt: {
         allowNull: false,
