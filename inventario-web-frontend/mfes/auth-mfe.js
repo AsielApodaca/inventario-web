@@ -14,17 +14,17 @@ class AuthMFE extends HTMLElement {
   attachEventListeners() {
     const form = this.shadowRoot.querySelector("form")
     const loginBtn = this.shadowRoot.querySelector(".login-btn")
-    const emailInput = this.shadowRoot.querySelector('input[type="email"]')
+    const usernameInput = this.shadowRoot.querySelector('input[name="username"]')
     const passwordInput = this.shadowRoot.querySelector('input[type="password"]')
     const errorDiv = this.shadowRoot.querySelector(".error-message")
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault()
       
-      const email = emailInput.value.trim()
+      const username = usernameInput.value.trim()
       const password = passwordInput.value.trim()
 
-      if (!email || !password) {
+      if (!username || !password) {
         this.showError("Por favor complete todos los campos")
         return
       }
@@ -35,20 +35,12 @@ class AuthMFE extends HTMLElement {
         errorDiv.style.display = "none"
 
         // Llamada real al backend
-        const response = await AuthService.login(email, password)
+        const response = await AuthService.login(username, password)
         
-        // Guardar token y usuario
-        if (response.data && response.data.token) {
-          localStorage.setItem("token", response.data.token)
-          localStorage.setItem("user", JSON.stringify(response.data.usuario))
-          
-          // Disparar evento de login exitoso
-          window.dispatchEvent(new CustomEvent("login-success", { 
-            detail: response.data 
-          }))
-        } else {
-          throw new Error("Respuesta del servidor inválida")
-        }
+        // El AuthService ya guarda el token en localStorage
+        // Redirigir al dashboard
+        window.location.href = '/index.html'
+        
       } catch (error) {
         console.error("Login error:", error)
         const message = error.response?.data?.message || error.message || "Error al iniciar sesión"
@@ -81,11 +73,12 @@ class AuthMFE extends HTMLElement {
           
           <form>
             <div class="form-group">
-              <label class="label">Email</label>
+              <label class="label">Usuario</label>
               <input 
-                type="email" 
+                type="text" 
+                name="username"
                 class="input" 
-                placeholder="tu@email.com"
+                placeholder="Ingresa tu usuario"
                 required
               >
             </div>
