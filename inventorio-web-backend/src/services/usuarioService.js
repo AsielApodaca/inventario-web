@@ -10,44 +10,28 @@ class UsuarioService {
     ALMACENISTA: 'almacenista'
   };
 
-  async crearUsuario(data, usuarioCreador) {
-    if (!data.nombre || data.nombre.trim() === '') {
-      throw new Error('El nombre del usuario es requerido');
-    }
-
-    if (!data.email || data.email.trim() === '') {
-      throw new Error('El email es requerido');
+  async crearUsuario(data) {
+    if (!data.username || data.username.trim() === '') {
+      throw new Error('El username es requerido');
     }
 
     if (!data.password || data.password.length < 6) {
       throw new Error('La contraseña debe tener al menos 6 caracteres');
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(data.email)) {
-      throw new Error('El formato del email es inválido');
-    }
-
     if (data.rol && !Object.values(this.ROLES).includes(data.rol)) {
       throw new Error(`Rol inválido. Roles permitidos: ${Object.values(this.ROLES).join(', ')}`);
     }
 
-    try {
-      const usuarioExistente = await usuarioDAO.autenticarUsuario(data.email, '');
-      if (usuarioExistente) {
-        throw new Error('Ya existe un usuario con ese email');
-      }
-    } catch (error) {
+    const usuarios = await usuarioDAO.listarUsuarios();
+    const usuarioExistente = usuarios.find(u => u.username.toLowerCase() === data.username.toLowerCase());
+    if (usuarioExistente) {
+      throw new Error('Ya existe un usuario con ese username');
     }
 
-    data.nombre = data.nombre.trim();
-    data.email = data.email.trim().toLowerCase();
+    data.username = data.username.trim();
     data.rol = data.rol || this.ROLES.EMPLEADO;
-
     data.password = await bcrypt.hash(data.password, 10);
-
-    data.creado_por = usuarioCreador;
-    data.fecha_creacion = new Date();
 
     const usuario = await usuarioDAO.crearUsuario(data);
 
@@ -55,21 +39,13 @@ class UsuarioService {
     return usuarioSinPassword;
   }
 
-  async listarUsuarios(opciones = {}) {
+  async listarUsuarios() {
     let usuarios = await usuarioDAO.listarUsuarios();
 
     usuarios = usuarios.map(u => {
       const { password, ...usuarioSinPassword } = u.toJSON();
       return usuarioSinPassword;
     });
-
-    if (opciones.rol) {
-      usuarios = usuarios.filter(u => u.rol === opciones.rol);
-    }
-
-    if (opciones.activos_solamente) {
-      usuarios = usuarios.filter(u => u.activo !== false);
-    }
 
     return {
       usuarios,
@@ -94,20 +70,16 @@ class UsuarioService {
     return usuarioSinPassword;
   }
 
-  async autenticarUsuario(email, password) {
-    if (!email || !password) {
-      throw new Error('Email y contraseña son requeridos');
+  async autenticarUsuario(username, password) {
+    if (!username || !password) {
+      throw new Error('Username y contraseña son requeridos');
     }
 
     const usuarios = await usuarioDAO.listarUsuarios();
-    const usuario = usuarios.find(u => u.email.toLowerCase() === email.toLowerCase());
+    const usuario = usuarios.find(u => u.username.toLowerCase() === username.toLowerCase());
 
     if (!usuario) {
       throw new Error('Credenciales inválidas');
-    }
-
-    if (usuario.activo === false) {
-      throw new Error('Usuario inactivo. Contacte al administrador');
     }
 
     const passwordValida = await bcrypt.compare(password, usuario.password);
@@ -118,7 +90,7 @@ class UsuarioService {
     const token = jwt.sign(
       {
         id: usuario.id,
-        email: usuario.email,
+        username: usuario.username,
         rol: usuario.rol
       },
       process.env.JWT_SECRET || 'tu_secreto_super_seguro_aqui',
@@ -134,7 +106,7 @@ class UsuarioService {
     };
   }
 
-  async actualizarUsuario(id, data, usuarioActualizador) {
+  async actualizarUsuario(id, data) {
     if (!id || isNaN(id)) {
       throw new Error('ID de usuario inválido');
     }
@@ -143,33 +115,23 @@ class UsuarioService {
     if (!usuarioActual) {
       throw new Error('Usuario no encontrado');
     }
-    if (data.nombre && data.nombre.trim() === '') {
-      throw new Error('El nombre del usuario no puede estar vacío');
-    }
 
-    if (data.email && data.email.trim() === '') {
-      throw new Error('El email no puede estar vacío');
-    }
-
-    if (data.email) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(data.email)) {
-        throw new Error('El formato del email es inválido');
-      }
+    if (data.username && data.username.trim() === '') {
+      throw new Error('El username no puede estar vacío');
     }
 
     if (data.rol && !Object.values(this.ROLES).includes(data.rol)) {
       throw new Error(`Rol inválido. Roles permitidos: ${Object.values(this.ROLES).join(', ')}`);
     }
 
-    if (data.email && data.email.toLowerCase() !== usuarioActual.email.toLowerCase()) {
+    if (data.username && data.username.toLowerCase() !== usuarioActual.username.toLowerCase()) {
       const usuarios = await usuarioDAO.listarUsuarios();
-      const emailExiste = usuarios.some(u => 
-        u.id !== id && u.email.toLowerCase() === data.email.toLowerCase()
+      const usernameExiste = usuarios.some(u => 
+        u.id !== id && u.username.toLowerCase() === data.username.toLowerCase()
       );
 
-      if (emailExiste) {
-        throw new Error('Ya existe un usuario con ese email');
+      if (usernameExiste) {
+        throw new Error('Ya existe un usuario con ese username');
       }
     }
 
@@ -180,11 +142,7 @@ class UsuarioService {
       data.password = await bcrypt.hash(data.password, 10);
     }
 
-    if (data.nombre) data.nombre = data.nombre.trim();
-    if (data.email) data.email = data.email.trim().toLowerCase();
-
-    data.actualizado_por = usuarioActualizador;
-    data.fecha_actualizacion = new Date();
+    if (data.username) data.username = data.username.trim();
 
     const usuario = await usuarioDAO.actualizarUsuario(id, data);
 
@@ -217,46 +175,12 @@ class UsuarioService {
 
     const passwordEncriptada = await bcrypt.hash(passwordNueva, 10);
 
-    await usuarioDAO.actualizarUsuario(id, { 
-      password: passwordEncriptada,
-      fecha_cambio_password: new Date()
-    });
+    await usuarioDAO.actualizarUsuario(id, { password: passwordEncriptada });
 
     return { mensaje: 'Contraseña actualizada exitosamente' };
   }
 
-  async cambiarEstadoUsuario(id, activo, usuarioActualizador) {
-    if (!id || isNaN(id)) {
-      throw new Error('ID de usuario inválido');
-    }
-
-    const usuario = await usuarioDAO.buscarPorId(id);
-    if (!usuario) {
-      throw new Error('Usuario no encontrado');
-    }
-
-    if (!activo && usuario.rol === this.ROLES.ADMIN) {
-      const usuarios = await usuarioDAO.listarUsuarios();
-      const adminsActivos = usuarios.filter(u => 
-        u.rol === this.ROLES.ADMIN && u.activo !== false && u.id !== id
-      );
-
-      if (adminsActivos.length === 0) {
-        throw new Error('No se puede desactivar al único administrador activo');
-      }
-    }
-
-    const usuarioActualizado = await usuarioDAO.actualizarUsuario(id, { 
-      activo,
-      actualizado_por: usuarioActualizador,
-      fecha_actualizacion: new Date()
-    });
-
-    const { password, ...usuarioSinPassword } = usuarioActualizado.toJSON();
-    return usuarioSinPassword;
-  }
-
-  async eliminarUsuario(id, usuarioEliminador) {
+  async eliminarUsuario(id) {
     if (!id || isNaN(id)) {
       throw new Error('ID de usuario inválido');
     }
@@ -275,7 +199,6 @@ class UsuarioService {
       }
     }
 
-  
     return await usuarioDAO.eliminarUsuario(id);
   }
 
@@ -287,75 +210,14 @@ class UsuarioService {
       );
 
       const usuario = await usuarioDAO.buscarPorId(decoded.id);
-      if (!usuario || usuario.activo === false) {
-        throw new Error('Token inválido o usuario inactivo');
+      if (!usuario) {
+        throw new Error('Token inválido o usuario no existe');
       }
 
       return decoded;
     } catch (error) {
       throw new Error('Token inválido o expirado');
     }
-  }
-
-  async verificarPermisos(usuarioId, permisosRequeridos) {
-    const usuario = await usuarioDAO.buscarPorId(usuarioId);
-    if (!usuario) {
-      throw new Error('Usuario no encontrado');
-    }
-
-    const jerarquia = {
-      [this.ROLES.ADMIN]: 4,
-      [this.ROLES.GERENTE]: 3,
-      [this.ROLES.ALMACENISTA]: 2,
-      [this.ROLES.EMPLEADO]: 1
-    };
-
-    const nivelUsuario = jerarquia[usuario.rol] || 0;
-    const nivelRequerido = jerarquia[permisosRequeridos] || 0;
-
-    return nivelUsuario >= nivelRequerido;
-  }
-
-  async buscarPorEmail(email) {
-    if (!email || email.trim() === '') {
-      throw new Error('El email es requerido');
-    }
-
-    const usuarios = await usuarioDAO.listarUsuarios();
-    const usuario = usuarios.find(u => u.email.toLowerCase() === email.toLowerCase());
-
-    if (!usuario) {
-      throw new Error('Usuario no encontrado');
-    }
-
-    const { password, ...usuarioSinPassword } = usuario.toJSON();
-    return usuarioSinPassword;
-  }
-
-  async obtenerEstadisticasUsuario(id) {
-    if (!id || isNaN(id)) {
-      throw new Error('ID de usuario inválido');
-    }
-
-    const usuario = await this.buscarPorId(id);
-
-    const estadisticas = {
-      usuario,
-      actividad: {
-        movimientos_registrados: 0,
-        ordenes_creadas: 0,
-        ultima_actividad: null
-      }
-   
-    };
-
-    return estadisticas;
-  }
-
-  async registrarSesion(id) {
-    return await usuarioDAO.actualizarUsuario(id, {
-      ultima_sesion: new Date()
-    });
   }
 
   _contarPorRol(usuarios) {

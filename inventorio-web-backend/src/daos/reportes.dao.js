@@ -1,7 +1,6 @@
-import Orden_Compra from '../daos/ordencompra.dao.js';
 import {Op} from 'sequelize';
 import db from '../models/index.js';
-const { Inventario, MovimientoInventario, Producto } = db;
+const { Inventario, MovimientoInventario, Producto, Orden_Compra } = db;
 
 class ReportesDAO {
   async reporteStockTotal() {
@@ -39,7 +38,10 @@ class ReportesDAO {
 
   async ordenesPendientes() {
     try {
-      return await Orden_Compra.filtrarPorEstado('pendiente');
+      return await Orden_Compra.findAll({ 
+        where: { estado: 'pendiente' },
+        include: ['proveedor']
+      });
     } catch (error) {
       throw error;
     }
