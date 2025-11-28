@@ -25,6 +25,7 @@ export default (sequelize, DataTypes) => {
   MovimientoInventario.init({
     id_producto: DataTypes.INTEGER,
     tipo_movimiento: DataTypes.STRING,
+    cantidad: DataTypes.FLOAT,
     motivo: DataTypes.STRING,
     id_usuario: DataTypes.INTEGER,
     fecha_movimiento: DataTypes.DATE
