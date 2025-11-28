@@ -16,9 +16,4 @@ export const LocationService = {
   async update(id, locationData) {
     return await apiClient.put(`${ENDPOINTS.LOCATIONS.BASE}/${id}`, locationData)
   },
-
-  // PATCH /ubicaciones/:id/estado (Admin)
-  async changeStatus(id, statusData) {
-    return await apiClient.patch(`${ENDPOINTS.LOCATIONS.BASE}/${id}/estado`, statusData)
-  },
 }

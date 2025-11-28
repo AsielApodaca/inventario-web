@@ -2,8 +2,7 @@ export const ENDPOINTS = {
   AUTH: {
     LOGIN: "/auth/login",
     REGISTER: "/auth/register",
-    VERIFY: "/auth/verify",
-    LOGOUT: "/auth/logout",
+    VERIFY: "/auth/verify"
   },
   PRODUCTS: {
     BASE: "/productos",
