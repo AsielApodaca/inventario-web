@@ -1,11 +1,10 @@
 import jwt from 'jsonwebtoken';
-import UsuarioDAO from '../daos/usuario.dao.js'; // proximamente se usará el controller de usuario
+import UsuarioDAO from '../daos/usuario.dao.js';
 
-// Middleware para verificar token JWT
 export const authenticateToken = async (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+    const token = authHeader && authHeader.split(' ')[1];
 
     if (!token) {
       return res.status(401).json({
@@ -14,10 +13,8 @@ export const authenticateToken = async (req, res, next) => {
       });
     }
 
-    // Verificar token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'tu_secreto_super_seguro_aqui');
     
-    // Verificar que el usuario aún existe en la base de datos
     const usuario = await UsuarioDAO.buscarPorId(decoded.id);
     if (!usuario) {
       return res.status(401).json({
@@ -26,9 +23,9 @@ export const authenticateToken = async (req, res, next) => {
       });
     }
 
-    // Adjuntar información del usuario a la request
+    // Corregir: el modelo usa 'id' no 'id_usuario'
     req.user = {
-      id: usuario.id_usuario,
+      id: usuario.id,
       username: usuario.username,
       rol: usuario.rol
     };
@@ -54,7 +51,6 @@ export const authenticateToken = async (req, res, next) => {
   }
 };
 
-// Middleware para verificar rol de administrador
 export const requireAdmin = (req, res, next) => {
   if (req.user.rol !== 'admin') {
     return res.status(403).json({
@@ -65,7 +61,6 @@ export const requireAdmin = (req, res, next) => {
   next();
 };
 
-// Middleware para verificar roles específicos
 export const requireRoles = (allowedRoles) => {
   return (req, res, next) => {
     if (!allowedRoles.includes(req.user.rol)) {

@@ -32,7 +32,7 @@ class OrdenCompraService {
 
     data.estado = this.ESTADOS.PENDIENTE;
     data.fecha_orden = new Date();
-    data.id_usuario_creador = id_usuario;
+    data.id_usuario = id_usuario;  // Corregido: era id_usuario_creador
     data.total = data.total || 0;
 
     return await ordenCompraDAO.crearOrden(data);
@@ -145,7 +145,6 @@ class OrdenCompraService {
 
     const orden = await ordenCompraDAO.actualizarEstado(id, nuevoEstado);
 
-  
     if (nuevoEstado === this.ESTADOS.RECIBIDA) {
     }
 

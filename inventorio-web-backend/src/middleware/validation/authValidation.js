@@ -36,8 +36,9 @@ export const validateRegister = [
     .withMessage('La contraseña debe tener al menos 6 caracteres'),
   
   body('rol')
-    .isIn(['admin', 'usuario'])
-    .withMessage('El rol debe ser admin o usuario'),
+    .optional()
+    .isIn(['admin', 'gerente', 'empleado', 'almacenista'])
+    .withMessage('El rol debe ser admin, gerente, empleado o almacenista'),
 
   (req, res, next) => {
     const errors = validationResult(req);
