@@ -4,172 +4,154 @@ class MovementsMFE extends HTMLElement {
   constructor() {
     super()
     this.attachShadow({ mode: "open" })
+    this.movements = [];
+    this.loading = true;
   }
 
   async connectedCallback() {
-    this.render()
-    this.attachEventListeners()
-    await this.fetchMovements()
+    this.render(); // 1. Pintar estructura
+    await this.fetchMovements(); // 2. Cargar datos
+    this.attachEventListeners();
   }
 
   async fetchMovements() {
     try {
-      const response = await MovementService.getAll()
-      if (response && response.data) {
-        // Aquí actualizarías la lista con datos reales
-        console.log("Movements loaded:", response.data)
-      }
+      this.loading = true;
+      this.updateList(); // Mostrar spinner
+
+      this.movements = await MovementService.getAll();
+      console.log("Movimientos procesados en MFE:", this.movements); // DEBUG
+
     } catch (error) {
-      console.log("Movement fetch error (usando datos estáticos):", error)
+      console.error("Error fetching movements:", error);
+      this.movements = [];
+    } finally {
+      this.loading = false;
+      this.updateList(); // Mostrar datos
     }
   }
 
-  attachEventListeners() {
-    // Filtros
-    const filterBtns = this.shadowRoot.querySelectorAll(".filter-btn")
-    filterBtns.forEach(btn => {
-      btn.addEventListener("click", (e) => {
-        filterBtns.forEach(b => b.classList.remove("active"))
-        e.target.classList.add("active")
-        // Aquí implementarías la lógica de filtrado
-      })
-    })
+  formatDate(dateString) {
+      if(!dateString) return '-';
+      return new Date(dateString).toLocaleDateString('es-MX', {
+          year: 'numeric', month: 'short', day: 'numeric', 
+          hour: '2-digit', minute:'2-digit'
+      });
+  }
 
-    // Formulario de registro
-    const form = this.shadowRoot.querySelector(".register-form")
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault()
-      const submitBtn = this.shadowRoot.querySelector(".submit-btn")
-      
-      try {
-        submitBtn.textContent = "Registering..."
-        submitBtn.disabled = true
+  // Actualiza solo la lista para no perder el foco del formulario
+  updateList() {
+      const listContainer = this.shadowRoot.querySelector('.movements-list');
+      if(!listContainer) return;
 
-        // Aquí llamarías al servicio para crear el movimiento
-        // await MovementService.create(formData)
-        
-        alert("Movement registered successfully!")
-        form.reset()
-      } catch (error) {
-        alert("Error registering movement: " + error.message)
-      } finally {
-        submitBtn.textContent = "Register Movement"
-        submitBtn.disabled = false
+      if(this.loading) {
+          listContainer.innerHTML = `
+            <div style="padding: 40px; text-align: center;">
+                <div class="spinner"></div>
+                <p style="color: #6B7280; margin-top: 10px;">Cargando movimientos...</p>
+            </div>`;
+          return;
       }
-    })
+
+      if(!this.movements || this.movements.length === 0) {
+          listContainer.innerHTML = `<div class="empty-state">No hay movimientos registrados.</div>`;
+          return;
+      }
+
+      listContainer.innerHTML = this.movements.map(m => {
+          // Lógica defensiva: Si algo falta, usamos valores por defecto
+          const isEntry = (m.tipo_movimiento || '').toLowerCase() === 'entrada';
+          const colorClass = isEntry ? 'bg-green' : 'bg-red';
+          const textClass = isEntry ? 'text-green' : 'text-red';
+          const sign = isEntry ? '+' : '-';
+          const arrow = isEntry ? '↓' : '↑';
+          
+          // Nombres seguros
+          const prodName = m.producto?.nombre || `Producto #${m.id_producto || '?'}`;
+          
+          // Manejo especial de ubicación (por si no existe en BD)
+          let ubicName = 'Ubicación General';
+          if (m.ubicacion?.nombre) ubicName = m.ubicacion.nombre;
+          else if (m.id_ubicacion) ubicName = `Ubicación #${m.id_ubicacion}`;
+
+          // Fecha segura
+          const fecha = this.formatDate(m.fecha_movimiento || m.createdAt);
+
+          return `
+            <div class="movement-item">
+              <div class="icon-circle ${colorClass}">${arrow}</div>
+              <div class="movement-details">
+                <div class="item-title">${(m.tipo_movimiento || 'Movimiento').toUpperCase()}: ${prodName}</div>
+                <div class="item-meta">${m.motivo || 'Sin motivo'}</div>
+                <div class="item-meta">📅 ${fecha}</div>
+              </div>
+              <div style="text-align: right;">
+                <div class="item-qty ${textClass}">${sign}${m.cantidad || 0}</div>
+                <div class="item-meta">${ubicName}</div>
+              </div>
+            </div>
+          `;
+      }).join('');
+  }
+
+  attachEventListeners() {
+    const refreshBtn = this.shadowRoot.querySelector('.refresh-btn');
+    if(refreshBtn) {
+        refreshBtn.addEventListener('click', () => this.fetchMovements());
+    }
+    
+    // ... aquí puedes volver a conectar tu formulario ...
   }
 
   render() {
     this.shadowRoot.innerHTML = `
       <link rel="stylesheet" href="styles/global.css">
-      <link rel="stylesheet" href="styles/movements.css">
-
-      <div class="section-header" style="margin-bottom: 1.5rem;">
-         <h1 style="font-size: 1.5rem; font-weight: 700;">Inventory Movements</h1>
-         <p style="color: var(--text-secondary);">Track all stock entries, exits, and adjustments.</p>
-      </div>
-
-      <div class="layout">
-        <!-- Left Column: List -->
-        <div class="main-panel">
-          <div class="filters">
-            <span style="font-weight: 600; font-size: 0.875rem;">Filter by type:</span>
-            <button class="filter-btn active">All</button>
-            <button class="filter-btn">Entry</button>
-            <button class="filter-btn">Exit</button>
-            <button class="filter-btn">Adjustment</button>
+      
+      <div class="page-container">
+          <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+             <div>
+                 <h1 style="font-size: 1.5rem; font-weight: 700; margin:0;">Movimientos de Inventario</h1>
+                 <p style="color: #6B7280; margin: 5px 0 0;">Historial de entradas y salidas.</p>
+             </div>
+             <button class="refresh-btn" title="Actualizar">↻</button>
           </div>
 
-          <div class="movements-list">
-            <!-- Item 1 -->
-            <div class="movement-item">
-              <div class="icon-circle bg-green-100">↓</div>
-              <div class="movement-details">
-                <div class="item-title">Stock Entry: Ergonomic Office Chair</div>
-                <div class="item-meta">PO-2024-051 from Comfort Seating Inc. to Central Warehouse</div>
-                <div class="item-meta">May 20, 2024, 10:30 AM</div>
-              </div>
-              <div style="text-align: right;">
-                <div class="item-qty text-green">+100</div>
-                <div class="item-meta">New Stock: 125</div>
-              </div>
-            </div>
-            
-            <!-- Item 2 -->
-            <div class="movement-item">
-              <div class="icon-circle bg-red-100">↑</div>
-              <div class="movement-details">
-                <div class="item-title">Stock Exit: Adjustable Standing Desk</div>
-                <div class="item-meta">SO-2024-112 to Customer Order</div>
-                <div class="item-meta">May 19, 2024, 02:15 PM</div>
-              </div>
-              <div style="text-align: right;">
-                <div class="item-qty text-red">-5</div>
-                <div class="item-meta">New Stock: 42</div>
-              </div>
-            </div>
-
-            <!-- Item 3 -->
-            <div class="movement-item">
-              <div class="icon-circle bg-yellow-100">✎</div>
-              <div class="movement-details">
-                <div class="item-title">Stock Adjustment: Wireless Mechanical Keyboard</div>
-                <div class="item-meta">Cycle count discrepancy in Downtown Warehouse</div>
-                <div class="item-meta">May 18, 2024, 09:00 AM</div>
-              </div>
-              <div style="text-align: right;">
-                <div class="item-qty text-yellow">-2</div>
-                <div class="item-meta">New Stock: 8</div>
-              </div>
+          <div class="layout">
+            <div class="main-panel">
+              <div class="movements-list">
+                 </div>
             </div>
           </div>
-        </div>
-
-        <!-- Right Column: Form -->
-        <div class="side-panel">
-          <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1.5rem;">Register Manual Movement</h3>
-          
-          <form class="register-form">
-            <div class="form-group">
-              <label class="form-label">Movement Type</label>
-              <select class="input" required>
-                <option value="">Select type...</option>
-                <option value="entry">Stock Entry</option>
-                <option value="exit">Stock Exit</option>
-                <option value="adjustment">Adjustment</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Product</label>
-              <input type="text" class="input" placeholder="Search by SKU or Name..." required>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Warehouse</label>
-              <select class="input" required>
-                <option value="">Select warehouse...</option>
-                <option value="central">Central Warehouse</option>
-                <option value="west">West Coast Hub</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Quantity</label>
-              <input type="number" class="input" placeholder="e.g. 10" required>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Reason / Note</label>
-              <textarea class="input" rows="3" placeholder="e.g. Found during stock count"></textarea>
-            </div>
-
-            <button type="submit" class="btn btn-primary submit-btn" style="width: 100%; margin-top: 1rem;">
-              Register Movement
-            </button>
-          </form>
-        </div>
       </div>
+
+      <style>
+        :host { display: block; padding: 20px; box-sizing: border-box; height: 100%; }
+        .page-container { display: flex; flex-direction: column; height: calc(100vh - 100px); }
+        .layout { display: flex; flex: 1; min-height: 0; background: white; border-radius: 8px; border: 1px solid #E5E7EB; overflow: hidden; }
+        .main-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .movements-list { flex: 1; overflow-y: auto; padding: 0; }
+        
+        .movement-item { display: flex; padding: 16px; border-bottom: 1px solid #F3F4F6; align-items: center; gap: 16px; }
+        .movement-item:hover { background: #F9FAFB; }
+        
+        .icon-circle { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: bold; flex-shrink: 0; }
+        .bg-green { background: #D1FAE5; color: #065F46; }
+        .bg-red { background: #FEE2E2; color: #991B1B; }
+        
+        .movement-details { flex: 1; }
+        .item-title { font-weight: 600; color: #1F2937; font-size: 0.95rem; }
+        .item-meta { font-size: 0.8rem; color: #6B7280; margin-top: 2px; }
+        .item-qty { font-weight: 700; font-size: 1.1rem; }
+        .text-green { color: #059669; }
+        .text-red { color: #DC2626; }
+        
+        .refresh-btn { background: white; border: 1px solid #D1D5DB; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 1.2rem; }
+        .refresh-btn:hover { background: #F3F4F6; }
+        
+        .empty-state { padding: 40px; text-align: center; color: #9CA3AF; font-style: italic; }
+        .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #4F46E5; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+      </style>
     `
   }
 }
