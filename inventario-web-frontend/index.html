@@ -10,16 +10,19 @@
   <link rel="stylesheet" href="styles/global.css"> 
 
   <style>
+    /* Aseguramos que la fuente base esté disponible */
+    body { font-family: 'Poppins', sans-serif; }
+    
+    /* El main crece con el contenido */
     main {
       padding: 2rem;
       background: #f9fafb;
-      min-height: calc(100vh - 64px);
-      box-sizing: border-box; /* Importante para evitar scroll horizontal */
+      flex: 1; /* Ocupa el espacio restante */
+      box-sizing: border-box;
     }
-    body { font-family: 'Poppins', sans-serif; }
   </style>
 </head>
-<body style="display: flex; margin: 0;">
+<body style="display: flex; margin: 0; height: 100vh; overflow: hidden;">
   
   <script>
     if (!localStorage.getItem('token')) {
@@ -57,6 +60,7 @@
   <script type="module" src="mfes/warehouses-mfe.js"></script>
   <script type="module" src="mfes/suppliers-mfe.js"></script>
   <script type="module" src="mfes/products-mfe.js"></script>
+  <script type="module" src="mfes/settings-mfe.js"></script>
 
   <!-- Navegación entre MFEs -->
   <script type="module">
@@ -91,12 +95,12 @@
           break;
         
         case 'settings':
-          mainContent.innerHTML = '<h2>Settings</h2><p>Settings page coming soon...</p>';
+          mainContent.innerHTML = '<settings-mfe></settings-mfe>';
           break;
         
         case 'logout':
           if(confirm('¿Estás seguro que quieres cerrar sesión?')) {
-            localStorage.removeItem('authToken'); // Corrección aquí también
+            localStorage.removeItem('token'); // Corrección aquí también
             localStorage.removeItem('user');
             window.location.href = '/login.html';
           } else {

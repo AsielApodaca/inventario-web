@@ -6,334 +6,308 @@ class WarehousesMFE extends HTMLElement {
     super()
     this.attachShadow({ mode: "open" })
     this.warehouses = []
+    this.loading = true
   }
 
   async connectedCallback() {
-    this.render()
-    await this.loadWarehouses()
-    this.attachEventListeners()
+    this.render();
+    await this.loadWarehouses();
+    this.attachEventListeners();
   }
 
   async loadWarehouses() {
     const loadingOverlay = this.shadowRoot.querySelector(".loading-overlay")
+    if (loadingOverlay) loadingOverlay.style.display = "flex"
     
     try {
-      loadingOverlay.style.display = "flex"
+      // 1. Obtener lista base
+      const response = await WarehouseService.getAll();
+      this.warehouses = Array.isArray(response.data) ? response.data : [];
 
-      const response = await WarehouseService.getAll()
-      this.warehouses = Array.isArray(response.data) ? response.data : []
-      
-      // Para cada almacén, obtener sus ubicaciones y estadísticas
-      await Promise.all(
-        this.warehouses.map(async (warehouse) => {
+      // 2. Renderizar base inmediatamente
+      this.updateWarehousesGrid();
+
+      if (this.warehouses.length === 0) return;
+
+      // 3. Cargar detalles en segundo plano
+      await Promise.allSettled(
+        this.warehouses.map(async (warehouse, index) => {
           try {
-            const ubicacionesRes = await WarehouseService.getUbicaciones(warehouse.id_almacen)
-            warehouse.ubicaciones = Array.isArray(ubicacionesRes.data) ? ubicacionesRes.data : []
-            
-            // Contar productos por ubicación
-            let totalProductos = 0
-            for (const ubicacion of warehouse.ubicaciones) {
-              try {
-                const inventarioRes = await InventoryService.getByUbicacion(ubicacion.id_ubicacion)
-                const items = Array.isArray(inventarioRes.data) ? inventarioRes.data : []
-                totalProductos += items.length
-              } catch (e) {
-                console.error('Error loading inventory for location:', e)
-              }
+            const whId = warehouse.id || warehouse.id_almacen;
+            if (!whId) return;
+
+            // Cargar Ubicaciones
+            const ubicacionesRes = await WarehouseService.getUbicaciones(whId);
+            warehouse.ubicaciones = ubicacionesRes.data || [];
+
+            // Contar productos
+            let total = 0;
+            if (warehouse.ubicaciones.length > 0) {
+                const inventoryPromises = warehouse.ubicaciones.map(ub => 
+                    InventoryService.getByUbicacion(ub.id || ub.id_ubicacion)
+                );
+                const results = await Promise.all(inventoryPromises);
+                results.forEach(res => {
+                    const items = res.data || [];
+                    total += items.length;
+                });
             }
-            warehouse.totalProductos = totalProductos
+            warehouse.totalProductos = total;
+            
+            // Actualizar tarjeta específica
+            this.updateCard(index, warehouse);
+
           } catch (error) {
-            console.error(`Error loading locations for warehouse ${warehouse.id_almacen}:`, error)
-            warehouse.ubicaciones = []
-            warehouse.totalProductos = 0
+            console.warn(`Error detalles almacén ${index}:`, error);
           }
         })
-      )
-
-      this.updateWarehousesGrid()
+      );
       
     } catch (error) {
-      console.error("Error loading warehouses:", error)
-      this.showError("Error al cargar almacenes")
+      console.error("Error loading warehouses:", error);
     } finally {
-      loadingOverlay.style.display = "none"
+      if (loadingOverlay) loadingOverlay.style.display = "none";
     }
-  }
-
-  attachEventListeners() {
-    const addNewBtn = this.shadowRoot.querySelector(".add-new-btn")
-    addNewBtn.addEventListener("click", () => {
-      this.showAddWarehouseModal()
-    })
   }
 
   updateWarehousesGrid() {
-    const container = this.shadowRoot.querySelector(".grid-warehouses")
-    
-    const warehouseCards = this.warehouses.map((warehouse, index) => {
-      const numLocations = warehouse.ubicaciones?.length || 0
-      const numProducts = warehouse.totalProductos || 0
+    const container = this.shadowRoot.querySelector(".grid-warehouses");
+    if (!container) return;
+
+    // Estado Vacío
+    if (this.warehouses.length === 0) {
+        container.innerHTML = `
+            <div style="grid-column: 1/-1; text-align: center; padding: 60px; color: #9CA3AF; border: 2px dashed #E5E7EB; border-radius: 12px;">
+                <div style="font-size: 3rem; margin-bottom: 10px;">🏭</div>
+                <p style="margin-bottom: 20px;">No hay almacenes registrados.</p>
+                <button class="btn-primary add-new-btn">Crear el Primer Almacén</button>
+            </div>`;
+        this.attachAddEvent(container);
+        return;
+    }
+
+    // Renderizado normal
+    const cardsHTML = this.warehouses.map((w, i) => this.getCardHTML(w, i)).join('');
+    const addCardHTML = `
+      <div class="wh-card add-card add-new-btn">
+        <div class="add-icon">+</div>
+        <div style="font-weight: 500;">Nuevo Almacén</div>
+      </div>
+    `;
+
+    container.innerHTML = cardsHTML + addCardHTML;
+    this.attachCardEvents(container);
+  }
+
+  getCardHTML(warehouse, index) {
+      const displayId = warehouse.id || warehouse.id_almacen || '?';
+      const numLocations = warehouse.ubicaciones?.length || 0;
+      const numProducts = warehouse.totalProductos !== undefined ? warehouse.totalProductos : '-';
       
-      // Calcular nivel de stock (simulado basado en productos)
-      let stockLevel = 0
-      let stockColor = 'red'
-      let stockText = 'Crítico'
+      let stockPercent = 0;
+      let stockColor = 'gray';
+      let stockText = 'Calculating...';
       
-      if (numProducts > 0) {
-        // Simulamos un porcentaje basado en la cantidad de productos
-        stockLevel = Math.min(Math.floor((numProducts / 50) * 100), 100)
-        
-        if (stockLevel >= 70) {
-          stockColor = 'green'
-          stockText = 'Saludable'
-        } else if (stockLevel >= 40) {
-          stockColor = 'orange'
-          stockText = 'Stock Bajo'
-        } else {
-          stockColor = 'red'
-          stockText = 'Crítico'
-        }
+      if (typeof numProducts === 'number' && numProducts > 0) {
+          stockPercent = Math.min((numProducts / 50) * 100, 100);
+          if (stockPercent > 60) { stockColor = 'green'; stockText = 'Healthy'; }
+          else if (stockPercent > 20) { stockColor = 'orange'; stockText = 'Low Stock'; }
+          else { stockColor = 'red'; stockText = 'Critical'; }
+      } else if (numProducts === 0) {
+          stockColor = 'red'; stockText = 'Empty';
       }
 
       return `
-        <div class="wh-card" data-id="${warehouse.id_almacen}">
+        <div class="wh-card" data-index="${index}">
           <div class="wh-header">
             <div>
               <div class="wh-name">${warehouse.nombre}</div>
-              <div class="wh-id">WH-${String(warehouse.id_almacen).padStart(3, '0')}</div>
+              <div class="wh-id">WH-${String(displayId).padStart(3, '0')}</div>
+            </div>
+            <div class="wh-location">
+                <span>📍</span> ${warehouse.direccion || 'Sin dirección'}
             </div>
           </div>
-          <div class="wh-location">
-             <span>📍</span> ${warehouse.direccion || 'Ubicación no especificada'}
-          </div>
+          
           <div class="stats-grid">
-            <div>
-              <div class="stat-label">Ubicaciones</div>
+            <div class="stat-box">
               <div class="stat-val">${numLocations}</div>
+              <div class="stat-label">Ubicaciones</div>
             </div>
-            <div>
-              <div class="stat-label">Productos</div>
+            <div class="stat-box">
               <div class="stat-val">${numProducts}</div>
+              <div class="stat-label">Productos</div>
             </div>
           </div>
+
           <div class="progress-container">
             <div class="progress-header">
-              <span class="stat-label">Nivel de Stock</span>
-              <span class="stat-label" style="color: ${this.getColorForLevel(stockColor)}">${stockLevel}% ${stockText}</span>
+              <span>Nivel de Stock</span>
+              <span style="color: var(--${stockColor}, #666)">${stockPercent}% ${stockText}</span>
             </div>
             <div class="progress-bar">
-              <div class="progress-fill fill-${stockColor}" style="width: ${stockLevel}%"></div>
+              <div class="progress-fill bg-${stockColor}" style="width: ${stockPercent}%"></div>
             </div>
           </div>
         </div>
-      `
-    }).join('')
-
-    const addCard = `
-      <div class="wh-card add-card add-new-btn">
-        <div class="add-icon">+</div>
-        <div style="font-weight: 500;">Agregar Nuevo Almacén</div>
-        <div style="font-size: 0.8rem; margin-top: 0.5rem;">Expande tu red de inventario</div>
-      </div>
-    `
-
-    container.innerHTML = warehouseCards + addCard
-
-    // Agregar event listeners a las tarjetas
-    const cards = container.querySelectorAll(".wh-card:not(.add-card)")
-    cards.forEach(card => {
-      card.addEventListener("click", () => {
-        const id = parseInt(card.dataset.id)
-        this.showWarehouseDetails(id)
-      })
-    })
+      `;
   }
 
-  getColorForLevel(level) {
-    const colors = {
-      'green': '#059669',
-      'orange': '#d97706',
-      'red': '#dc2626'
-    }
-    return colors[level] || '#6b7280'
+  updateCard(index, warehouse) {
+      const oldCard = this.shadowRoot.querySelector(`.wh-card[data-index="${index}"]`);
+      if (oldCard) {
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = this.getCardHTML(warehouse, index);
+          const newCard = tempDiv.firstElementChild;
+          oldCard.replaceWith(newCard);
+          // Reconectar click
+          newCard.addEventListener('click', () => alert(`Detalles: ${warehouse.nombre}`));
+      }
   }
 
-  showWarehouseDetails(id) {
-    const warehouse = this.warehouses.find(w => w.id_almacen === id)
-    if (!warehouse) return
+  attachCardEvents(container) {
+      container.querySelectorAll('.wh-card:not(.add-card)').forEach(card => {
+          card.addEventListener('click', () => {
+              const index = card.getAttribute('data-index');
+              const wh = this.warehouses[index];
+              alert(`Almacén: ${wh.nombre}\nResponsable: ${wh.responsable || 'N/A'}`);
+          });
+      });
+      this.attachAddEvent(container);
+  }
 
-    const modal = document.createElement('div')
-    modal.innerHTML = `
-      <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center;">
-        <div style="background: white; padding: 2rem; border-radius: 1rem; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;">
-          <h2 style="margin-bottom: 1rem;">${warehouse.nombre}</h2>
-          <p style="color: #6b7280; margin-bottom: 1rem;">
-            <strong>Dirección:</strong> ${warehouse.direccion || 'No especificada'}
-          </p>
-          <p style="color: #6b7280; margin-bottom: 1rem;">
-            <strong>Ubicaciones:</strong> ${warehouse.ubicaciones?.length || 0}
-          </p>
-          <p style="color: #6b7280; margin-bottom: 1.5rem;">
-            <strong>Total de productos:</strong> ${warehouse.totalProductos || 0}
-          </p>
-          
-          <h3 style="margin-top: 1.5rem; margin-bottom: 0.5rem;">Ubicaciones:</h3>
-          <div style="max-height: 200px; overflow-y: auto;">
-            ${warehouse.ubicaciones?.map(ub => `
-              <div style="padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; margin-bottom: 0.5rem;">
-                <strong>${ub.codigo}</strong> - ${ub.nombre || 'Sin nombre'}
-                <br><small style="color: #6b7280;">Pasillo: ${ub.pasillo || 'N/A'} | Estante: ${ub.estante || 'N/A'} | Nivel: ${ub.nivel || 'N/A'}</small>
-              </div>
-            `).join('') || '<p style="color: #6b7280;">No hay ubicaciones registradas</p>'}
-          </div>
-          
-          <button onclick="this.closest('div').parentElement.remove()" style="margin-top: 1rem; padding: 0.5rem 1rem; background: #3b82f6; color: white; border: none; border-radius: 0.5rem; cursor: pointer;">
-            Cerrar
-          </button>
-        </div>
-      </div>
-    `
-    document.body.appendChild(modal)
+  attachAddEvent(container) {
+      const addBtn = container.querySelector('.add-new-btn');
+      if(addBtn) addBtn.addEventListener('click', () => this.showAddWarehouseModal());
+  }
+
+  attachEventListeners() {
+      const headerBtn = this.shadowRoot.querySelector('.header-add-btn');
+      if (headerBtn) {
+          headerBtn.addEventListener('click', () => this.showAddWarehouseModal());
+      }
   }
 
   showAddWarehouseModal() {
-    const modal = document.createElement('div')
-    modal.innerHTML = `
-      <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center;">
-        <div style="background: white; padding: 2rem; border-radius: 1rem; max-width: 500px; width: 90%;">
-          <h2 style="margin-bottom: 1.5rem;">Agregar Nuevo Almacén</h2>
-          <form id="warehouse-form">
-            <div style="margin-bottom: 1rem;">
-              <label style="display: block; font-weight: 500; margin-bottom: 0.5rem;">Nombre del Almacén *</label>
-              <input type="text" name="nombre" required style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.5rem;">
+      const modal = document.createElement('div');
+      modal.innerHTML = `
+        <div class="modal-overlay">
+            <div class="modal-content">
+                <h2>Nuevo Almacén</h2>
+                <form id="new-wh-form">
+                    <label>Nombre</label>
+                    <input name="nombre" class="input" required>
+                    <label>Dirección</label>
+                    <input name="direccion" class="input" required>
+                    <label>Responsable</label>
+                    <input name="responsable" class="input" required>
+                    <div style="display:flex; gap:10px; margin-top:20px; justify-content:flex-end;">
+                        <button type="button" class="btn-outline close-modal">Cancelar</button>
+                        <button type="submit" class="btn-primary">Guardar</button>
+                    </div>
+                </form>
             </div>
-            <div style="margin-bottom: 1rem;">
-              <label style="display: block; font-weight: 500; margin-bottom: 0.5rem;">Dirección</label>
-              <textarea name="direccion" rows="3" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.5rem;"></textarea>
-            </div>
-            <div style="display: flex; gap: 1rem;">
-              <button type="button" onclick="this.closest('div').parentElement.parentElement.remove()" style="flex: 1; padding: 0.5rem 1rem; background: #e5e7eb; border: none; border-radius: 0.5rem; cursor: pointer;">
-                Cancelar
-              </button>
-              <button type="submit" style="flex: 1; padding: 0.5rem 1rem; background: #3b82f6; color: white; border: none; border-radius: 0.5rem; cursor: pointer;">
-                Guardar
-              </button>
-            </div>
-          </form>
         </div>
-      </div>
-    `
-    document.body.appendChild(modal)
-
-    const form = modal.querySelector('#warehouse-form')
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault()
-      const formData = new FormData(form)
-      const data = {
-        nombre: formData.get('nombre'),
-        direccion: formData.get('direccion')
-      }
-
-      try {
-        const response = await WarehouseService.create(data)
-        if (response.status === 'success') {
-          alert('Almacén creado exitosamente')
-          modal.remove()
-          await this.loadWarehouses()
-        }
-      } catch (error) {
-        alert('Error al crear almacén: ' + (error.message || 'Error desconocido'))
-      }
-    })
-  }
-
-  showError(message) {
-    const errorDiv = this.shadowRoot.querySelector(".error-banner")
-    if (errorDiv) {
-      errorDiv.textContent = message
-      errorDiv.style.display = "block"
-    }
+      `;
+      this.shadowRoot.appendChild(modal);
+      
+      modal.querySelector('.close-modal').addEventListener('click', () => modal.remove());
+      
+      modal.querySelector('form').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const formData = new FormData(e.target);
+          const data = Object.fromEntries(formData.entries());
+          
+          try {
+              await WarehouseService.create(data);
+              alert("✅ Almacén creado");
+              modal.remove();
+              this.loadWarehouses(); // Recargar lista
+          } catch(err) {
+              alert("Error: " + err.message);
+          }
+      });
   }
 
   render() {
     this.shadowRoot.innerHTML = `
       <link rel="stylesheet" href="styles/global.css">
-      <link rel="stylesheet" href="styles/warehouses.css">
-
-      <div class="loading-overlay">
-        <div class="spinner"></div>
-      </div>
-
-      <div class="error-banner" style="display: none;"></div>
-
-      <div class="section-header" style="margin-bottom: 1.5rem; display: flex; justify-content: space-between;">
-         <div>
-           <h1 style="font-size: 1.5rem; font-weight: 700;">Vista General de Almacenes</h1>
-           <p style="color: var(--text-secondary);">Navega visualmente por almacenes, ubicaciones y productos.</p>
-         </div>
-         <button class="btn btn-primary add-new-btn">+ Nuevo Almacén</button>
-      </div>
-
-      <div class="grid-warehouses">
-        <!-- Populated dynamically -->
-      </div>
-
       <style>
-        .loading-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(255, 255, 255, 0.9);
-          display: none;
-          align-items: center;
-          justify-content: center;
-          z-index: 1000;
+        :host { display: block; padding: 20px; box-sizing: border-box; }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .section-header h1 { margin: 0; font-size: 1.5rem; color: #111827; }
+        
+        /* Grid Layout */
+        .grid-warehouses { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        
+        /* Card Styles (Restaurado) */
+        .wh-card {
+            background: white;
+            border: 1px solid #E5E7EB;
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
         }
+        .wh-card:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        
+        /* Header & Location */
+        .wh-header { display: flex; justify-content: space-between; align-items: flex-start; }
+        .wh-name { font-weight: 700; font-size: 1.1rem; color: #1F2937; }
+        .wh-id { font-size: 0.75rem; color: #9CA3AF; }
+        .wh-location { font-size: 0.85rem; color: #6B7280; display: flex; align-items: center; gap: 4px; }
+        
+        /* Stats Grid (Sin fondo gris) */
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .stat-box { } 
+        .stat-val { font-weight: 700; font-size: 1.2rem; color: #111827; }
+        .stat-label { font-size: 0.7rem; color: #6B7280; text-transform: uppercase; }
+        
+        /* Progress Bar con Texto */
+        .progress-container { }
+        .progress-header { display: flex; justify-content: space-between; font-size: 0.75rem; color: #6B7280; margin-bottom: 4px; }
+        .progress-bar { height: 6px; background: #E5E7EB; border-radius: 10px; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 10px; }
+        
+        /* Colores y Variables CSS */
+        .bg-green { background: #10B981; --green: #10B981; }
+        .bg-orange { background: #F59E0B; --orange: #F59E0B; }
+        .bg-red { background: #EF4444; --red: #EF4444; }
+        .bg-gray { background: #D1D5DB; --gray: #6B7280; }
+        
+        /* Add Card */
+        .add-card { border: 2px dashed #E5E7EB; align-items: center; justify-content: center; min-height: 200px; color: #6B7280; gap: 8px; }
+        .add-card:hover { border-color: #4F46E5; color: #4F46E5; }
+        .add-icon { font-size: 2rem; }
+        
+        /* Loading & Modal */
+        .loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.8); z-index: 1000; display: none; align-items: center; justify-content: center; }
+        .spinner { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #4F46E5; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        .spinner {
-          width: 40px;
-          height: 40px;
-          border: 4px solid #f3f3f3;
-          border-top: 4px solid var(--primary-color);
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-
-        .error-banner {
-          background: #fee2e2;
-          color: #dc2626;
-          padding: 1rem;
-          border-radius: 0.5rem;
-          margin-bottom: 1rem;
-          border-left: 4px solid #dc2626;
-        }
-
-        .wh-card:not(.add-card) {
-          cursor: pointer;
-          transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .wh-card:not(.add-card):hover {
-          transform: translateY(-4px);
-          box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-        }
-
-        .add-new-btn {
-          cursor: pointer;
-        }
-
-        .fill-green { background: #059669; }
-        .fill-orange { background: #d97706; }
-        .fill-red { background: #dc2626; }
+        /* Modal Styles */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; display: flex; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 2rem; border-radius: 12px; width: 400px; }
+        .input { width: 100%; padding: 8px; border: 1px solid #D1D5DB; border-radius: 6px; margin-bottom: 10px; box-sizing: border-box; }
+        .btn-primary { background: #4F46E5; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; }
+        .btn-outline { background: white; border: 1px solid #D1D5DB; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
       </style>
-    `
+
+      <div class="loading-overlay"><div class="spinner"></div></div>
+
+      <div class="section-header">
+         <div>
+            <h1>Almacenes</h1>
+            <p style="margin:0; color:#6B7280;">Gestión de edificios e inventario.</p>
+         </div>
+         <button class="btn-primary header-add-btn">+ Almacén</button>
+      </div>
+
+      <div class="grid-warehouses"></div>
+    `;
   }
 }
 

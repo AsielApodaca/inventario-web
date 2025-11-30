@@ -5,6 +5,7 @@ function extractArray(response) {
   const data = response.data;
   if (Array.isArray(data)) return data;
   if (data && Array.isArray(data.data)) return data.data;
+  if (data && data.data && Array.isArray(data.data.data)) return data.data.data;
   return [];
 }
 
@@ -36,8 +37,15 @@ export const InventoryService = {
   // --- MÉTODO REQUERIDO POR TU MFE (Alias para compatibilidad) ---
   // Tu MFE llama a 'getByUbicacion', pero la plantilla tenía 'getProductsByLocation'
   // Aquí exponemos ambos para asegurar que funcione.
+  // GET /inventario/ubicacion/:id
   async getByUbicacion(locationId) {
-     return this.getProductsByLocation(locationId);
+    try {
+        const response = await apiClient.get(`${ENDPOINTS.INVENTORY.BASE}/ubicacion/${locationId}`)
+        const foundArray = extractArray(response);
+        return { data: foundArray };
+    } catch (error) {
+        return { data: [] };
+    }
   },
 
   // GET /inventario/ubicacion/:id_ubicacion
