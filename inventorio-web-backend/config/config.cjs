@@ -1,6 +1,8 @@
+require('dotenv').config();
+
 const getNumber = v => (v ? Number(v) : undefined);
 
-const config = {
+module.exports = {
   development: {
     username: process.env.DB_USER || 'root',
     password: process.env.DB_PASS || 'password',
@@ -29,5 +31,3 @@ const config = {
     use_env_variable: process.env.DB_USE_ENV_VARIABLE || undefined
   }
 };
-
-export default config;
