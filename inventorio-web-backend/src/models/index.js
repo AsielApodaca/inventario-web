@@ -4,7 +4,7 @@ import { fileURLToPath, pathToFileURL } from 'url';
 import process from 'process';
 import Sequelize from 'sequelize';
 import dotenv from 'dotenv';
-import configFromFile from '../../config/config.js';
+import configFromFile from '../../config/config.cjs';
 
 dotenv.config();
 

@@ -3,29 +3,37 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Test Componentes Inventario</title>
+  <title>Warencloud - Inventario</title>
   <link rel="stylesheet" href="styles/header.css">
   <link rel="stylesheet" href="styles/sidebar.css">
+  
+  <link rel="stylesheet" href="styles/global.css"> 
+
   <style>
+    /* Aseguramos que la fuente base esté disponible */
+    body { font-family: 'Poppins', sans-serif; }
+    
+    /* El main crece con el contenido */
     main {
       padding: 2rem;
       background: #f9fafb;
-      min-height: calc(100vh - 64px);
+      flex: 1; /* Ocupa el espacio restante */
+      box-sizing: border-box;
     }
   </style>
 </head>
-<body style="display: flex; margin: 0;">
-  <!-- Verificar autenticación antes de cargar -->
+<body style="display: flex; margin: 0; height: 100vh; overflow: hidden;">
+  
   <script>
     if (!localStorage.getItem('token')) {
       window.location.href = '/login.html';
     }
   </script>
+
   <app-sidebar></app-sidebar>
-  <div style="flex: 1;">
-    <app-header></app-header>
+  
+  <div style="flex: 1; display: flex; flex-direction: column; min-width: 0;"> <app-header></app-header>
     <main id="main-content">
-      <!-- El contenido se cargará dinámicamente aquí -->
       <dashboard-mfe></dashboard-mfe>
     </main>
   </div>
@@ -51,6 +59,8 @@
   <script type="module" src="mfes/movements-mfe.js"></script>
   <script type="module" src="mfes/warehouses-mfe.js"></script>
   <script type="module" src="mfes/suppliers-mfe.js"></script>
+  <script type="module" src="mfes/products-mfe.js"></script>
+  <script type="module" src="mfes/settings-mfe.js"></script>
 
   <!-- Navegación entre MFEs -->
   <script type="module">
@@ -58,6 +68,7 @@
 
     window.addEventListener('navigate', (e) => {
       const route = e.detail.route;
+      console.log("Navegando a:", route); // Debug
       
       mainContent.innerHTML = '';
       
@@ -65,25 +76,39 @@
         case 'dashboard':
           mainContent.innerHTML = '<dashboard-mfe></dashboard-mfe>';
           break;
+        
+        case 'products':
+          // 3. CORRECCIÓN DE ETIQUETA: <products-mfe> (Plural)
+          mainContent.innerHTML = '<products-mfe></products-mfe>';
+          break;
+        
         case 'movements':
           mainContent.innerHTML = '<movements-mfe></movements-mfe>';
           break;
+        
         case 'warehouses':
           mainContent.innerHTML = '<warehouses-mfe></warehouses-mfe>';
           break;
+        
         case 'suppliers':
           mainContent.innerHTML = '<suppliers-mfe></suppliers-mfe>';
           break;
+        
         case 'settings':
-          mainContent.innerHTML = '<h2>Settings</h2><p>Settings page coming soon...</p>';
+          mainContent.innerHTML = '<settings-mfe></settings-mfe>';
           break;
+        
         case 'logout':
           if(confirm('¿Estás seguro que quieres cerrar sesión?')) {
-            localStorage.removeItem('token');
+            localStorage.removeItem('token'); // Corrección aquí también
             localStorage.removeItem('user');
             window.location.href = '/login.html';
+          } else {
+             // Si cancela, recargamos el dashboard por defecto
+             mainContent.innerHTML = '<dashboard-mfe></dashboard-mfe>';
           }
           break;
+        
         default:
           mainContent.innerHTML = '<h2>Página no encontrada</h2>';
       }

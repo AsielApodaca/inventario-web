@@ -13,5 +13,4 @@
 .DS_Store
 Thumbs.db
 
-inventorio-web-backend/config
 inventorio-web-backend/config/config.json

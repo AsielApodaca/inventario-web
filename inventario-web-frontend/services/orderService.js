@@ -1,54 +1,73 @@
 import apiClient from "./api/apiClient.js"
 import { ENDPOINTS } from "./api/endpoints.js"
 
+// Misma función helper
+function extractArray(response) {
+  const data = response.data;
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.data)) return data.data;
+  if (data && data.data && Array.isArray(data.data.rows)) return data.data.rows;
+  if (data && data.data && Array.isArray(data.data.data)) return data.data.data;
+  
+  if (data && typeof data === 'object') {
+     const keys = Object.keys(data);
+     for (const key of keys) {
+       if (Array.isArray(data[key])) return data[key];
+     }
+  }
+  return [];
+}
+
 export const OrderService = {
-  // GET /ordenes-compra/estados/disponibles
-  async getAvailableStates() {
-    return await apiClient.get(`${ENDPOINTS.ORDERS.BASE}/estados/disponibles`)
+  // GET /ordenes-compra
+  async getAll(filters) {
+    try {
+      const response = await apiClient.get(ENDPOINTS.ORDERS.BASE, { params: filters })
+      return extractArray(response);
+    } catch (error) {
+      console.error("OrderService.getAll error:", error);
+      return [];
+    }
   },
 
-  // GET /ordenes-compra?filters...
-  async getAll(filters) {
-    return await apiClient.get(ENDPOINTS.ORDERS.BASE, { params: filters })
+  // GET /ordenes-compra/estados/disponibles
+  async getAvailableStates() {
+    const response = await apiClient.get(`${ENDPOINTS.ORDERS.BASE}/estados/disponibles`)
+    return extractArray(response);
   },
 
   // GET /ordenes-compra/proveedor/:id_proveedor
   async getByProvider(providerId) {
-    return await apiClient.get(`${ENDPOINTS.ORDERS.BASE}/proveedor/${providerId}`)
+    const response = await apiClient.get(`${ENDPOINTS.ORDERS.BASE}/proveedor/${providerId}`)
+    return extractArray(response);
   },
 
   // GET /ordenes-compra/estado/:estado
   async getByState(state) {
-    return await apiClient.get(`${ENDPOINTS.ORDERS.BASE}/estado/${state}`)
+    const response = await apiClient.get(`${ENDPOINTS.ORDERS.BASE}/estado/${state}`)
+    return extractArray(response);
   },
 
   // GET /ordenes-compra/:id
   async getById(id) {
-    return await apiClient.get(`${ENDPOINTS.ORDERS.BASE}/${id}`)
+    const response = await apiClient.get(`${ENDPOINTS.ORDERS.BASE}/${id}`)
+    return response.data;
   },
 
   // GET /ordenes-compra/:id/detalles
   async getDetails(id) {
-    return await apiClient.get(`${ENDPOINTS.ORDERS.BASE}/${id}/detalles`)
+    const response = await apiClient.get(`${ENDPOINTS.ORDERS.BASE}/${id}/detalles`)
+    return extractArray(response);
   },
 
   // GET /ordenes-compra/:id/total
   async getTotal(id) {
-    return await apiClient.get(`${ENDPOINTS.ORDERS.BASE}/${id}/total`)
+    const response = await apiClient.get(`${ENDPOINTS.ORDERS.BASE}/${id}/total`)
+    return response.data || 0;
   },
 
-  // POST /ordenes-compra (Admin)
-  async create(orderData) {
-    return await apiClient.post(ENDPOINTS.ORDERS.BASE, orderData)
-  },
-
-  // POST /ordenes-compra/:id/cancelar (Admin)
-  async cancel(id) {
-    return await apiClient.post(`${ENDPOINTS.ORDERS.BASE}/${id}/cancelar`)
-  },
-
-  // PATCH /ordenes-compra/:id/estado (Admin)
-  async updateStatus(id, statusData) {
-    return await apiClient.patch(`${ENDPOINTS.ORDERS.BASE}/${id}/estado`, statusData)
-  },
+  // --- MÉTODOS DE ESCRITURA ---
+  async create(orderData) { return await apiClient.post(ENDPOINTS.ORDERS.BASE, orderData) },
+  async cancel(id) { return await apiClient.post(`${ENDPOINTS.ORDERS.BASE}/${id}/cancelar`) },
+  async updateStatus(id, statusData) { return await apiClient.patch(`${ENDPOINTS.ORDERS.BASE}/${id}/estado`, statusData) },
 }

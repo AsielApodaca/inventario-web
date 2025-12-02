@@ -1,7 +1,7 @@
 'use strict';
-import bcrypt from 'bcryptjs';
+const bcrypt = require('bcryptjs');
 
-export default {
+module.exports = {
   async up(queryInterface, Sequelize) {
     const hashedPassword = await bcrypt.hash('admin123', 10);
     

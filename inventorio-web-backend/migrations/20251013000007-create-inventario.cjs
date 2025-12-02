@@ -1,8 +1,8 @@
 'use strict';
 /** @type {import('sequelize-cli').Migration} */
-export default {
+module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.createTable('MovimientoInventarios', {
+    await queryInterface.createTable('Inventarios', {
       id: {
         allowNull: false,
         autoIncrement: true,
@@ -13,37 +13,24 @@ export default {
         type: Sequelize.INTEGER,
         allowNull: false,
         references: {
+
           model: 'Productos',
           key: 'id'
-        },
-        onUpdate: 'CASCADE',
-        onDelete: 'RESTRICT'
+
+        }
       },
-      tipo_movimiento: {
-        type: Sequelize.STRING,
-        allowNull: false
-      },
-      cantidad: {
-        type: Sequelize.FLOAT,
-        allowNull: false
-      },
-      motivo: {
-        type: Sequelize.STRING
-      },
-      id_usuario: {
+      id_ubicacion: {
         type: Sequelize.INTEGER,
         allowNull: false,
         references: {
-          model: 'Usuarios',
+
+          model: 'Ubicacions',
           key: 'id'
-        },
-        onUpdate: 'CASCADE',
-        onDelete: 'RESTRICT'
+
+        }
       },
-      fecha_movimiento: {
-        type: Sequelize.DATE,
-        allowNull: false,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
+      cantidad: {
+        type: Sequelize.FLOAT
       },
       createdAt: {
         allowNull: false,
@@ -56,6 +43,6 @@ export default {
     });
   },
   async down(queryInterface, Sequelize) {
-    await queryInterface.dropTable('MovimientoInventarios');
+    await queryInterface.dropTable('Inventarios');
   }
 };
