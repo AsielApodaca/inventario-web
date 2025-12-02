@@ -1,41 +1,34 @@
 'use strict';
 /** @type {import('sequelize-cli').Migration} */
-export default {
+module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.createTable('Categoria', {
+    await queryInterface.createTable('Usuarios', {
       id: {
-        allowNull: true,
+        allowNull: false,
         autoIncrement: true,
         primaryKey: true,
         type: Sequelize.INTEGER
       },
-      nombre: {
+      username: {
         type: Sequelize.STRING
       },
-      descripcion: {
+      password: {
         type: Sequelize.STRING
       },
-      id_categoria_padre: {
-        type: Sequelize.INTEGER,
-        allowNull: true,
-        references: {
-
-          model: 'Categoria',
-          key: 'id'
-
-        }
+      rol: {
+        type: Sequelize.STRING
       },
       createdAt: {
-        allowNull: true,
+        allowNull: false,
         type: Sequelize.DATE
       },
       updatedAt: {
-        allowNull: true,
+        allowNull: false,
         type: Sequelize.DATE
       }
     });
   },
   async down(queryInterface, Sequelize) {
-    await queryInterface.dropTable('Categoria');
+    await queryInterface.dropTable('Usuarios');
   }
 };

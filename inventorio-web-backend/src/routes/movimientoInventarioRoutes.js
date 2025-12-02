@@ -15,6 +15,9 @@ const router = express.Router();
 // Aplicar autenticación a TODAS las rutas de movimientos de inventario
 router.use(authenticateToken);
 
+// GET /api/movimientos-inventario - Obtener todos los movimientos
+router.get('/', movimientoInventarioController.getAllMovimientos);
+
 // GET /api/movimientos-inventario/tipos - Obtener tipos de movimiento disponibles
 router.get('/tipos', movimientoInventarioController.getTiposMovimiento);
 

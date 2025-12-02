@@ -12,7 +12,14 @@ class MovimientoInventarioDAO {
 
   async consultarPorProducto(id_producto) {
     try {
-      return await MovimientoInventario.findAll({ where: { id_producto }, include: ['producto', 'usuario'] });
+      return await MovimientoInventario.findAll({ 
+        where: { id_producto }, 
+        include: [
+          { model: Producto, as: 'producto' },
+          { model: Usuario, as: 'usuario' }
+        ],
+        order: [['fecha_movimiento', 'DESC']]
+      });
     } catch (error) {
       throw error;
     }
@@ -20,7 +27,41 @@ class MovimientoInventarioDAO {
 
   async consultarPorFecha(rango) {
     try {
-      return await MovimientoInventario.findAll({ where: { fecha_movimiento: rango } });
+      return await MovimientoInventario.findAll({ 
+        where: { fecha_movimiento: rango },
+        include: [
+          { model: Producto, as: 'producto' },
+          { model: Usuario, as: 'usuario' }
+        ],
+        order: [['fecha_movimiento', 'DESC']]
+      });
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async obtenerTodos() {
+    try {
+      return await MovimientoInventario.findAll({
+        include: [
+          { model: Producto, as: 'producto' },
+          { model: Usuario, as: 'usuario' }
+        ],
+        order: [['fecha_movimiento', 'DESC']]
+      });
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async obtenerPorId(id) {
+    try {
+      return await MovimientoInventario.findByPk(id, {
+        include: [
+          { model: Producto, as: 'producto' },
+          { model: Usuario, as: 'usuario' }
+        ]
+      });
     } catch (error) {
       throw error;
     }

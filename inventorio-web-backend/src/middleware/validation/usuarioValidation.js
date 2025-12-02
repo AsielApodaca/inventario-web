@@ -29,8 +29,8 @@ export const validateCreateUsuario = [
   body('rol')
     .notEmpty()
     .withMessage('El rol es requerido')
-    .isIn(['admin', 'usuario'])
-    .withMessage('El rol debe ser "admin" o "usuario"'),
+    .isIn(['admin', 'gerente', 'empleado', 'almacenista'])
+    .withMessage('El rol debe ser "admin", "gerente", "empleado" o "almacenista"'),
 
   (req, res, next) => {
     const errors = validationResult(req);
@@ -63,8 +63,8 @@ export const validateUpdateUsuario = [
 
   body('rol')
     .optional()
-    .isIn(['admin', 'usuario'])
-    .withMessage('El rol debe ser "admin" o "usuario"'),
+    .isIn(['admin', 'gerente', 'empleado', 'almacenista'])
+    .withMessage('El rol debe ser "admin", "gerente", "empleado" o "almacenista"'),
 
   (req, res, next) => {
     const errors = validationResult(req);

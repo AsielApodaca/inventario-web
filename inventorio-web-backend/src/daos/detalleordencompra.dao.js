@@ -27,6 +27,17 @@ class DetalleOrdenCompraDAO {
       throw error;
     }
   }
+
+  async eliminarDetalle(id) {
+    try {
+      const detalle = await Detalle_Orden_Compra.findByPk(id);
+      if (!detalle) return null;
+      await detalle.destroy();
+      return true;
+    } catch (error) {
+      throw error;
+    }
+  }
 }
 
 export default new DetalleOrdenCompraDAO();

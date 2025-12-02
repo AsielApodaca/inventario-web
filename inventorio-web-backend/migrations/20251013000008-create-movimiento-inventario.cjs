@@ -1,6 +1,6 @@
 'use strict';
 /** @type {import('sequelize-cli').Migration} */
-export default {
+module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable('MovimientoInventarios', {
       id: {
@@ -13,14 +13,19 @@ export default {
         type: Sequelize.INTEGER,
         allowNull: false,
         references: {
-
           model: 'Productos',
           key: 'id'
-
-        }
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'RESTRICT'
       },
       tipo_movimiento: {
-        type: Sequelize.STRING
+        type: Sequelize.STRING,
+        allowNull: false
+      },
+      cantidad: {
+        type: Sequelize.FLOAT,
+        allowNull: false
       },
       motivo: {
         type: Sequelize.STRING
@@ -29,14 +34,16 @@ export default {
         type: Sequelize.INTEGER,
         allowNull: false,
         references: {
-
           model: 'Usuarios',
           key: 'id'
-
-        }
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'RESTRICT'
       },
       fecha_movimiento: {
-        type: Sequelize.DATE
+        type: Sequelize.DATE,
+        allowNull: false,
+        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
       },
       createdAt: {
         allowNull: false,

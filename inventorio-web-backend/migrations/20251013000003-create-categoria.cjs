@@ -1,10 +1,10 @@
 'use strict';
 /** @type {import('sequelize-cli').Migration} */
-export default {
+module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.createTable('Almacens', {
+    await queryInterface.createTable('Categoria', {
       id: {
-        allowNull: false,
+        allowNull: true,
         autoIncrement: true,
         primaryKey: true,
         type: Sequelize.INTEGER
@@ -12,23 +12,30 @@ export default {
       nombre: {
         type: Sequelize.STRING
       },
-      direccion: {
+      descripcion: {
         type: Sequelize.STRING
       },
-      responsable: {
-        type: Sequelize.STRING
+      id_categoria_padre: {
+        type: Sequelize.INTEGER,
+        allowNull: true,
+        references: {
+
+          model: 'Categoria',
+          key: 'id'
+
+        }
       },
       createdAt: {
-        allowNull: false,
+        allowNull: true,
         type: Sequelize.DATE
       },
       updatedAt: {
-        allowNull: false,
+        allowNull: true,
         type: Sequelize.DATE
       }
     });
   },
   async down(queryInterface, Sequelize) {
-    await queryInterface.dropTable('Almacens');
+    await queryInterface.dropTable('Categoria');
   }
 };

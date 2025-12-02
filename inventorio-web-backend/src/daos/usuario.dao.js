@@ -26,9 +26,9 @@ class UsuarioDAO {
     }
   }
 
-  async autenticarUsuario(email, password) {
+  async autenticarUsuario(username, password) {
     try {
-      return await Usuario.findOne({ where: { email, password } });
+      return await Usuario.findOne({ where: { username, password } });
     } catch (error) {
       throw error;
     }

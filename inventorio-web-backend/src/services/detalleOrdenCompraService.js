@@ -19,7 +19,6 @@ class DetalleOrdenCompraService {
       throw new Error('El precio unitario debe ser mayor a 0');
     }
 
-  
     data.subtotal = data.cantidad * data.precio_unitario;
 
     return await detalleOrdenCompraDAO.agregarDetalle(data);
@@ -81,7 +80,12 @@ class DetalleOrdenCompraService {
       throw new Error('ID de detalle inválido');
     }
 
- 
+    const resultado = await detalleOrdenCompraDAO.eliminarDetalle(id);
+    if (!resultado) {
+      throw new Error('Detalle no encontrado');
+    }
+
+    return { mensaje: 'Detalle eliminado exitosamente' };
   }
 }
 

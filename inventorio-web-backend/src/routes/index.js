@@ -28,8 +28,15 @@ router.use('/inventario', inventarioRoutes);
 router.use('/movimientos-inventario', movimientoInventarioRoutes);
 router.use('/ordenes-compra', ordenCompraRoutes);
 
-// Rutas con parámetros (deben ir después de las rutas simples)
-router.use('/almacenes/:id_almacen/ubicaciones', almacenUbicacionRoutes);
-router.use('/ordenes-compra/:id_orden/detalles', detalleOrdenCompraRoutes);
+// Rutas anidadas - usar middleware para extraer parámetros
+router.use('/almacenes/:id_almacen/ubicaciones', (req, res, next) => {
+  req.id_almacen = req.params.id_almacen;
+  next();
+}, almacenUbicacionRoutes);
+
+router.use('/ordenes-compra/:id_orden/detalles', (req, res, next) => {
+  req.id_orden = req.params.id_orden;
+  next();
+}, detalleOrdenCompraRoutes);
 
 export default router;

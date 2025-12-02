@@ -1,0 +1,105 @@
+.grid-warehouses {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+.wh-card {
+  background: white;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  padding: 1.5rem;
+  transition: transform 0.2s;
+}
+.wh-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+.wh-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  margin-bottom: 1rem;
+}
+.wh-name {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+.wh-id {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.wh-location {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+}
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.stat-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.stat-val {
+  font-weight: 600;
+}
+
+.progress-container {
+  margin-top: 1rem;
+}
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  margin-bottom: 0.25rem;
+}
+.progress-bar {
+  height: 6px;
+  background: #f3f4f6;
+  border-radius: 99px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 99px;
+}
+.fill-green {
+  background: var(--success-color);
+  width: 85%;
+}
+.fill-orange {
+  background: var(--accent-color);
+  width: 45%;
+}
+.fill-red {
+  background: var(--danger-color);
+  width: 15%;
+}
+
+.add-card {
+  border: 2px dashed var(--border-color);
+  background: #f9fafb;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 250px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+}
+.add-card:hover {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+  background: #eef2ff;
+}
+.add-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
