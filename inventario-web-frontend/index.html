@@ -61,6 +61,7 @@
   <script type="module" src="mfes/suppliers-mfe.js"></script>
   <script type="module" src="mfes/products-mfe.js"></script>
   <script type="module" src="mfes/settings-mfe.js"></script>
+  <script type="module" src="mfes/orders-mfe.js"></script>
 
   <!-- Navegación entre MFEs -->
   <script type="module">
@@ -96,6 +97,10 @@
         
         case 'settings':
           mainContent.innerHTML = '<settings-mfe></settings-mfe>';
+          break;
+        
+        case 'orders':
+          mainContent.innerHTML = '<orders-mfe></orders-mfe>';
           break;
         
         case 'logout':

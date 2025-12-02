@@ -48,6 +48,14 @@ class AppSidebar extends HTMLElement {
           Products
         </div>
 
+        <div class="nav-link" data-route="orders">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="5" width="18" height="14" rx="2"/>
+            <path d="M7 9h10M7 13h6"/>
+          </svg>
+          Orders
+        </div>
+
         <div class="nav-link" data-route="movements">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
           Inventory Movements
