@@ -47,7 +47,8 @@ export const ProductService = {
   // GET /productos/:id
   async getById(id) {
     const response = await apiClient.get(`${ENDPOINTS.PRODUCTS.BASE}/${id}`)
-    return response.data; 
+    // El backend devuelve { status: 'success', data: producto }
+    return response.data?.data || response.data?.producto || null;
   },
 
   // GET /productos/buscar
