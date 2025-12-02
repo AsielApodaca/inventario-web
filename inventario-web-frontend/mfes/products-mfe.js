@@ -98,12 +98,17 @@ class ProductsMFE extends HTMLElement {
           </td>
           <td><span class="badge ${badgeClass}">${badgeText}</span></td>
           <td class="text-center">
-             <button class="btn-icon" title="Editar">✏️</button>
+             <button class="btn-icon edit-btn" data-id="${product.id}" title="Editar">✏️</button>
           </td>
         </tr>
       `
     }).join('');
+    
+    // Reconectar event listeners para los botones de editar
+    this.attachEditButtons();
   }
+
+
 
   updateCount() {
       const label = this.shadowRoot.querySelector('#total-count');
@@ -134,9 +139,311 @@ class ProductsMFE extends HTMLElement {
     
     const addBtn = this.shadowRoot.querySelector('.add-btn');
     if(addBtn) {
-        addBtn.addEventListener('click', () => alert("Funcionalidad de Crear Producto pendiente de implementar"));
+          addBtn.addEventListener('click', () => this.showCreateProductModal());
     }
+    
+    // Conectar botones de editar
+    this.attachEditButtons();
   }
+
+  attachEditButtons() {
+    // Limpiar listeners previos (clonación de nodos para evitar handlers duplicados)
+    this.shadowRoot.querySelectorAll('.edit-btn').forEach(btn => {
+      const btnClone = btn.cloneNode(true);
+      btn.parentNode.replaceChild(btnClone, btn);
+      btnClone.addEventListener('click', () => {
+        const id = btnClone.getAttribute('data-id');
+        this.showEditProductModal(id);
+      });
+    });
+  }
+
+    showCreateProductModal() {
+      if (this.shadowRoot.querySelector('#create-product-modal')) return;
+      const modal = document.createElement('div');
+      modal.id = 'create-product-modal';
+      modal.innerHTML = `
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+          <h2>Nuevo Producto</h2>
+          <form id="create-product-form">
+            <label>Nombre:<br><input name="nombre" required></label><br>
+            <label>Categoría:<br><select name="categoria" id="categoria-select" required><option value="">Cargando...</option></select></label><br>
+            <label>Proveedor:<br><select name="proveedor" id="proveedor-select" required><option value="">Cargando...</option></select></label><br>
+            <label>Código de Barras:<br><input name="codigo_barras"></label><br>
+            <label>Precio Compra:<br><input name="precio_compra" type="number" step="0.01" required></label><br>
+            <label>Precio Venta:<br><input name="precio_venta" type="number" step="0.01" required></label><br>
+            <label>Stock:<br><input name="stock" type="number" required></label><br>
+            <label>Stock Mínimo:<br><input name="stock_minimo" type="number" required></label><br>
+            <div class="modal-actions">
+              <button type="submit" class="btn-primary">Crear</button>
+              <button type="button" class="btn-icon" id="cancel-modal">Cancelar</button>
+            </div>
+            <div id="modal-error" style="color:red;margin-top:8px;"></div>
+          </form>
+        </div>
+        <style>
+          .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.3); z-index: 1000; }
+          .modal-content { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 32px; border-radius: 10px; box-shadow: 0 2px 16px rgba(0,0,0,0.2); z-index: 1001; min-width: 320px; }
+          .modal-actions { margin-top: 16px; display: flex; gap: 10px; }
+        </style>
+      `;
+      this.shadowRoot.appendChild(modal);
+
+      // Cargar categorías y proveedores
+      import('../services/categoryService.js').then(({ CategoryService }) => {
+        CategoryService.getAll().then((catRes) => {
+          let categorias = [];
+          // catRes puede ser un objeto axios response o el array directo
+          if (Array.isArray(catRes)) {
+            categorias = catRes;
+          } else if (catRes && Array.isArray(catRes.data)) {
+            categorias = catRes.data;
+          } else if (catRes && catRes.data && Array.isArray(catRes.data.data)) {
+            categorias = catRes.data.data;
+          } else if (catRes && catRes.data && Array.isArray(catRes.data.rows)) {
+            categorias = catRes.data.rows;
+          }
+          const select = modal.querySelector('#categoria-select');
+          if (categorias.length === 0) {
+            select.innerHTML = '<option value="">No hay categorías</option>';
+          } else {
+            select.innerHTML = '<option value="">Seleccione...</option>' +
+              categorias.map(cat => `<option value="${cat.id}">${cat.nombre}</option>`).join('');
+          }
+        }).catch(() => {
+          const select = modal.querySelector('#categoria-select');
+          select.innerHTML = '<option value="">Error cargando categorías</option>';
+        });
+      });
+      import('../services/supplierService.js').then(({ SupplierService }) => {
+        SupplierService.getAll().then(provs => {
+          const select = modal.querySelector('#proveedor-select');
+          select.innerHTML = '<option value="">Seleccione...</option>' +
+            provs.map(prov => `<option value="${prov.id}">${prov.nombre}</option>`).join('');
+        });
+      });
+
+      // Cancelar
+      modal.querySelector('#cancel-modal').onclick = () => modal.remove();
+
+      // Enviar formulario
+      modal.querySelector('#create-product-form').onsubmit = async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const data = Object.fromEntries(new FormData(form));
+        // Convertir campos numéricos
+        data.precio_compra = parseFloat(data.precio_compra);
+        data.precio_venta = parseFloat(data.precio_venta);
+        data.stock = parseInt(data.stock);
+        data.stock_minimo = parseInt(data.stock_minimo);
+        // Enviar solo los ids seleccionados con los nombres correctos
+        data.id_categoria = parseInt(data.categoria);
+        data.id_proveedor = parseInt(data.proveedor);
+        delete data.categoria;
+        delete data.proveedor;
+        try {
+          await ProductService.create(data);
+          modal.remove();
+          this.loadProducts();
+        } catch (err) {
+          modal.querySelector('#modal-error').textContent = 'Error al crear producto.';
+        }
+      };
+    }
+
+    async showEditProductModal(productId) {
+      if (this.shadowRoot.querySelector('#edit-product-modal')) return;
+      
+      try {
+        // 1. Obtener datos del producto
+        const product = await ProductService.getById(productId);
+        // Normalizar producto
+        const flatProduct = product && product.data ? product.data : product;
+        // Nueva validación estricta
+        if (!flatProduct || typeof flatProduct !== 'object' || Object.keys(flatProduct).length === 0) {
+          console.error('No se pudo obtener el producto o está vacío:', flatProduct);
+          alert('Error: No se encontró el producto o está vacío.');
+          return;
+        }
+        console.log('Producto a editar (flatProduct):', flatProduct);
+
+        // Obtener IDs de categoría y proveedor (pueden estar directamente o en objetos anidados)
+        const categoriaId = flatProduct.id_categoria || flatProduct.categoria?.id || '';
+        const proveedorId = flatProduct.id_proveedor || flatProduct.proveedor?.id || '';
+
+        const modal = document.createElement('div');
+        modal.id = 'edit-product-modal';
+        modal.innerHTML = `
+          <div class="modal-overlay"></div>
+          <div class="modal-content">
+            <h2>Editar Producto</h2>
+            <form id="edit-product-form">
+              <div class="form-grid">
+                <label>
+                  Nombre
+                  <input name="nombre" value="${this.escapeHtml(flatProduct.nombre || '')}" required>
+                </label>
+                <label>
+                  Categoría
+                  <select name="categoria" id="edit-categoria-select" required>
+                    <option>Cargando...</option>
+                  </select>
+                </label>
+                <label>
+                  Proveedor
+                  <select name="proveedor" id="edit-proveedor-select" required>
+                    <option>Cargando...</option>
+                  </select>
+                </label>
+                <label>
+                  Código de Barras
+                  <input name="codigo_barras" value="${this.escapeHtml(flatProduct.codigo_barras || '')}">
+                </label>
+                <label>
+                  Precio Compra
+                  <input name="precio_compra" type="number" step="0.01" value="${flatProduct.precio_compra || ''}" required>
+                </label>
+                <label>
+                  Precio Venta
+                  <input name="precio_venta" type="number" step="0.01" value="${flatProduct.precio_venta || ''}" required>
+                </label>
+                <label>
+                  Stock
+                  <input name="stock" type="number" value="${flatProduct.stock || 0}" required>
+                </label>
+                <label>
+                  Stock Mínimo
+                  <input name="stock_minimo" type="number" value="${flatProduct.stock_minimo || 0}" required>
+                </label>
+              </div>
+              <div id="modal-error" class="modal-error"></div>
+              <div class="modal-actions">
+                <button type="submit" class="btn-primary">Guardar cambios</button>
+                <button type="button" class="btn-secondary" id="cancel-edit-modal">Cancelar</button>
+              </div>
+            </form>
+          </div>
+          <style>
+            .modal-overlay {position: fixed; top: 0; left: 0;width: 100vw; height: 100vh;background: rgba(0,0,0,0.35);z-index: 1000;}
+            .modal-content {position: fixed;top: 50%; left: 50%;transform: translate(-50%, -50%);background: #fff;padding: 28px;border-radius: 14px;box-shadow: 0 4px 18px rgba(0,0,0,0.28);z-index: 1001;min-width: 420px;animation: fadeIn 0.25s ease-out;}
+            h2 {margin-top: 0;margin-bottom: 16px;font-size: 22px;font-weight: 600;color: #222;}
+            .form-grid {display: grid;grid-template-columns: 1fr 1fr;gap: 14px;}
+            label {display: flex;flex-direction: column;font-size: 14px;color: #333;}
+            input, select {margin-top: 4px;padding: 8px;border-radius: 6px;border: 1px solid #ccc;font-size: 14px;}
+            .modal-actions {margin-top: 20px;display: flex;justify-content: flex-end;gap: 10px;}
+            .btn-primary {background: #007bff;color: white;padding: 8px 16px;border: none;border-radius: 6px;cursor: pointer;}
+            .btn-secondary {background: #ccc;color: black;padding: 8px 16px;border: none;border-radius: 6px;cursor: pointer;}
+            .modal-error {color: red;margin-top: 8px;min-height: 18px;}@keyframes fadeIn {from { opacity: 0; transform: translate(-50%, -48%); }to{ opacity: 1; transform: translate(-50%, -50%); }}
+          </style>
+        `;
+
+        this.shadowRoot.appendChild(modal);
+
+        // 2. Cargar categorías
+        import('../services/categoryService.js').then(({ CategoryService }) => {
+          CategoryService.getAll().then(catRes => {
+            let categorias = [];
+            // Manejar diferentes formatos de respuesta
+            if (Array.isArray(catRes)) {
+              categorias = catRes;
+            } else if (catRes && Array.isArray(catRes.data)) {
+              categorias = catRes.data;
+            } else if (catRes && catRes.data && Array.isArray(catRes.data.data)) {
+              categorias = catRes.data.data;
+            } else if (catRes && catRes.data && Array.isArray(catRes.data.rows)) {
+              categorias = catRes.data.rows;
+            }
+
+            const select = modal.querySelector('#edit-categoria-select');
+            if (categorias.length === 0) {
+              select.innerHTML = '<option value="">No hay categorías</option>';
+            } else {
+              select.innerHTML = '<option value="">Seleccione...</option>' +
+                categorias.map(c => `<option value="${c.id}" ${c.id == categoriaId ? 'selected' : ''}>${c.nombre}</option>`).join('');
+            }
+          }).catch(err => {
+            console.error('Error cargando categorías:', err);
+            const select = modal.querySelector('#edit-categoria-select');
+            select.innerHTML = '<option value="">Error cargando categorías</option>';
+          });
+        });
+
+        // 3. Cargar proveedores
+        import('../services/supplierService.js').then(({ SupplierService }) => {
+          SupplierService.getAll().then(provRes => {
+            let proveedores = [];
+            // Manejar diferentes formatos de respuesta
+            if (Array.isArray(provRes)) {
+              proveedores = provRes;
+            } else if (provRes && Array.isArray(provRes.data)) {
+              proveedores = provRes.data;
+            } else if (provRes && provRes.data && Array.isArray(provRes.data.data)) {
+              proveedores = provRes.data.data;
+            } else if (provRes && provRes.data && Array.isArray(provRes.data.rows)) {
+              proveedores = provRes.data.rows;
+            }
+
+            const select = modal.querySelector('#edit-proveedor-select');
+            if (proveedores.length === 0) {
+              select.innerHTML = '<option value="">No hay proveedores</option>';
+            } else {
+              select.innerHTML = '<option value="">Seleccione...</option>' +
+                proveedores.map(p => `<option value="${p.id}" ${p.id == proveedorId ? 'selected' : ''}>${p.nombre}</option>`).join('');
+            }
+          }).catch(err => {
+            console.error('Error cargando proveedores:', err);
+            const select = modal.querySelector('#edit-proveedor-select');
+            select.innerHTML = '<option value="">Error cargando proveedores</option>';
+          });
+        });
+
+        // 4. Cerrar modal
+        modal.querySelector('#cancel-edit-modal').addEventListener('click', () => {
+          modal.remove();
+        });
+
+        // 5. Guardar cambios
+        modal.querySelector('#edit-product-form').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const formData = new FormData(e.target);
+          const data = Object.fromEntries(formData.entries());
+
+          // Convertir campos numéricos
+          data.precio_compra = parseFloat(data.precio_compra);
+          data.precio_venta = parseFloat(data.precio_venta);
+          data.stock = parseInt(data.stock);
+          data.stock_minimo = parseInt(data.stock_minimo);
+          // Enviar solo los ids seleccionados con los nombres correctos
+          data.id_categoria = parseInt(data.categoria);
+          data.id_proveedor = parseInt(data.proveedor);
+          delete data.categoria;
+          delete data.proveedor;
+
+          try {
+            await ProductService.update(productId, data);
+            modal.remove();
+            await this.loadProducts();
+          } catch (error) {
+            modal.querySelector('#modal-error').textContent =
+              'Error guardando cambios: ' + (error?.message || 'Desconocido');
+          }
+        });
+      } catch (error) {
+        console.error('Error al abrir modal de edición:', error);
+        alert('Error al cargar el producto: ' + (error?.message || 'Desconocido'));
+      }
+    }
+
+    // Función helper para escapar HTML y prevenir XSS
+    escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+
+  
 
   formatCurrency(value) {
     return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(value || 0);

@@ -1,4 +1,5 @@
 import { UserService } from "../services/userService.js"
+import { AuthService } from "../services/authService.js"
 
 class SettingsMFE extends HTMLElement {
   constructor() {
@@ -80,7 +81,6 @@ class SettingsMFE extends HTMLElement {
     const btnText = isEdit ? 'Save Changes' : 'Create User';
     
     const name = this.selectedUser?.username || '';
-    const email = this.selectedUser?.email || '';
     const role = this.selectedUser?.rol || 'admin';
 
     const formContainer = this.shadowRoot.querySelector('#form-container');
@@ -93,10 +93,6 @@ class SettingsMFE extends HTMLElement {
                 <div class="form-group">
                     <label>Username / Full Name</label>
                     <input type="text" class="input" name="username" value="${name}" required placeholder="John Doe">
-                </div>
-                <div class="form-group">
-                    <label>Email</label>
-                    <input type="email" class="input" name="email" value="${email}" required placeholder="email@warencloud.com">
                 </div>
                 <div class="form-group">
                     <label>Role</label>
@@ -186,7 +182,7 @@ class SettingsMFE extends HTMLElement {
               await UserService.update(this.selectedUser.id, data);
               alert("Usuario actualizado");
           } else {
-              await UserService.create(data);
+              await AuthService.register(data);
               alert("Usuario creado");
           }
           this.selectedUser = null;
@@ -248,10 +244,6 @@ class SettingsMFE extends HTMLElement {
                     <div class="form-group">
                         <label>Username</label>
                         <input type="text" class="input" name="username" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Email</label>
-                        <input type="email" class="input" name="email" required>
                     </div>
                     <div class="form-group">
                         <label>Role</label>
