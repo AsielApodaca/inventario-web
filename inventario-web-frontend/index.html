@@ -61,6 +61,7 @@
   <script type="module" src="mfes/suppliers-mfe.js"></script>
   <script type="module" src="mfes/products-mfe.js"></script>
   <script type="module" src="mfes/settings-mfe.js"></script>
+  <script type="module" src="mfes/categories-mfe.js"></script>
 
   <!-- Navegación entre MFEs -->
   <script type="module">
@@ -92,6 +93,10 @@
         
         case 'suppliers':
           mainContent.innerHTML = '<suppliers-mfe></suppliers-mfe>';
+          break;
+
+        case 'categories':
+          mainContent.innerHTML = '<categories-mfe></categories-mfe>';
           break;
         
         case 'settings':
