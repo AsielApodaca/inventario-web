@@ -145,24 +145,73 @@ class MovementsMFE extends HTMLElement {
     });
   }
 
-  // --- NUEVA FUNCIONALIDAD: PROCESAR ENTRADA ---
+  // --- FUNCIONALIDAD: PROCESAR ENTRADA CON VALIDACIONES ---
   async showProcessModal(movement) {
-    // 1. Obtener ubicaciones del almacén de este movimiento
-    let locations = [];
-    try {
-        const res = await AlmacenUbicacionService.getByAlmacen(movement.id_almacen);
-        // Normalización de respuesta de ubicaciones
-        locations = Array.isArray(res.data) ? res.data : (res.data?.data || []);
-    } catch(e) {
-        console.warn("No se pudieron cargar ubicaciones", e);
-    }
-
-    if(locations.length === 0) {
-        alert("⚠️ Este almacén no tiene ubicaciones configuradas. Crea ubicaciones primero.");
+    // VALIDACIÓN 1: Verificar que el movimiento tenga id_almacen
+    if (!movement.id_almacen) {
+        alert("❌ Error: El movimiento no tiene un almacén asignado. No se puede procesar.");
         return;
     }
 
-    // 2. Crear Modal
+    // VALIDACIÓN 2: Verificar que el almacén exista
+    let warehouse = null;
+    try {
+        const warehouseRes = await WarehouseService.getById(movement.id_almacen);
+        // Normalizar respuesta del almacén (puede venir en diferentes formatos)
+        if (warehouseRes?.data?.data) {
+            warehouse = warehouseRes.data.data;
+        } else if (warehouseRes?.data) {
+            warehouse = warehouseRes.data;
+        } else if (warehouseRes?.id) {
+            warehouse = warehouseRes;
+        } else {
+            warehouse = null;
+        }
+    } catch(e) {
+        console.error("Error al verificar almacén:", e);
+        alert(`❌ Error: No se pudo verificar el almacén (ID: ${movement.id_almacen}).\n\nAsegúrate de que:\n- El almacén exista\n- Tengas permisos para acceder al almacén\n\nError: ${e.message || 'Error desconocido'}`);
+        return;
+    }
+
+    if (!warehouse || !warehouse.id) {
+        alert(`❌ Error: El almacén con ID ${movement.id_almacen} no existe.\n\nPor favor, crea el almacén primero desde la sección de Almacenes.`);
+        return;
+    }
+
+    // VALIDACIÓN 3: Verificar que el almacén tenga ubicaciones configuradas
+    let locations = [];
+    try {
+        const res = await AlmacenUbicacionService.getByAlmacen(movement.id_almacen);
+        // Normalización exhaustiva de respuesta de ubicaciones
+        if (res?.data?.data?.data && Array.isArray(res.data.data.data)) {
+            locations = res.data.data.data;
+        } else if (res?.data?.data && Array.isArray(res.data.data)) {
+            locations = res.data.data;
+        } else if (Array.isArray(res?.data)) {
+            locations = res.data;
+        } else if (Array.isArray(res)) {
+            locations = res;
+        } else {
+            locations = [];
+        }
+    } catch(e) {
+        console.error("Error al cargar ubicaciones:", e);
+        alert(`❌ Error: No se pudieron cargar las ubicaciones del almacén.\n\nVerifica que:\n- El almacén exista\n- El almacén tenga ubicaciones configuradas\n\nError: ${e.message || 'Error desconocido'}`);
+        return;
+    }
+
+    if(locations.length === 0) {
+        alert(`⚠️ El almacén "${warehouse.nombre || movement.almacen_nombre}" no tiene ubicaciones configuradas.\n\nPor favor, crea al menos una ubicación para este almacén antes de procesar el movimiento.\n\nPuedes crear ubicaciones desde la sección de Almacenes.`);
+        return;
+    }
+
+    // VALIDACIÓN 4: Verificar que el producto exista
+    if (!movement.id_producto) {
+        alert("❌ Error: El movimiento no tiene un producto asignado. No se puede procesar.");
+        return;
+    }
+
+    // Si todas las validaciones pasan, mostrar el modal
     const modal = document.createElement('div');
     modal.className = 'modal-overlay';
     modal.innerHTML = `
@@ -171,13 +220,29 @@ class MovementsMFE extends HTMLElement {
             <p style="color:#666; font-size:0.9rem; margin-bottom:15px;">
                 Vas a agregar <strong>${movement.cantidad}</strong> unidades de 
                 <strong>${movement.producto?.nombre || 'Producto'}</strong> al 
-                <strong>${movement.almacen_nombre}</strong>.
+                <strong>${warehouse.nombre || movement.almacen_nombre}</strong>.
             </p>
 
-            <label class="form-label">Selecciona Ubicación (Estante/Rack):</label>
+            <label class="form-label">Selecciona Ubicación (Pasillo-Estante-Nivel):</label>
             <select id="process-location" class="form-select" style="margin-bottom:20px;">
-                <option value="">-- Seleccionar --</option>
-                ${locations.map(loc => `<option value="${loc.id}">${loc.nombre} (${loc.codigo || loc.id})</option>`).join('')}
+                <option value="">-- Seleccionar ubicación --</option>
+                ${locations.map(loc => {
+                    // Formatear nombre de ubicación: pasillo-estante-nivel
+                    const pasillo = loc.pasillo || '';
+                    const estante = loc.estante || '';
+                    const nivel = loc.nivel || '';
+                    let locName = '';
+                    
+                    if (pasillo && estante && nivel) {
+                        locName = `${pasillo}-${estante}-${nivel}`;
+                    } else if (loc.nombre) {
+                        locName = loc.nombre;
+                    } else {
+                        locName = `Ubicación ${loc.id}`;
+                    }
+                    
+                    return `<option value="${loc.id}">${locName}</option>`;
+                }).join('')}
             </select>
 
             <div style="display:flex; gap:10px; justify-content:flex-end;">
@@ -195,7 +260,7 @@ class MovementsMFE extends HTMLElement {
     modal.querySelector('.btn-confirm').onclick = async () => {
         const locationId = select.value;
         if(!locationId) {
-            alert("Debes seleccionar una ubicación.");
+            alert("⚠️ Debes seleccionar una ubicación para continuar.");
             return;
         }
 
@@ -204,25 +269,33 @@ class MovementsMFE extends HTMLElement {
             btn.textContent = "Guardando...";
             btn.disabled = true;
 
+            // VALIDACIÓN FINAL: Verificar que la ubicación seleccionada pertenezca al almacén
+            const selectedLocation = locations.find(loc => loc.id == locationId);
+            if (!selectedLocation) {
+                throw new Error("La ubicación seleccionada no es válida.");
+            }
+
             // LLAMADA AL INVENTARIO
             await InventoryService.create({
                 id_almacen: movement.id_almacen,
                 id_producto: movement.id_producto,
                 id_ubicacion: parseInt(locationId),
                 cantidad: movement.cantidad,
-                // Opcional: min/max stock si tu API lo pide, si no, se deja default
                 stock_minimo: 0, 
                 stock_maximo: 100 
             });
 
-            alert("✅ ¡Stock actualizado correctamente!");
+            alert("✅ ¡Stock actualizado correctamente! El movimiento ha sido procesado.");
             modal.remove();
-            // Opcional: Podrías marcar el movimiento como 'procesado' visualmente si guardaras eso en localstorage o BD
+            // Recargar movimientos para reflejar cambios
+            setTimeout(() => this.loadMovements(), 500);
             
         } catch(err) {
-            console.error(err);
-            alert("Error al guardar en inventario: " + (err.response?.data?.message || err.message));
-            modal.querySelector('.btn-confirm').disabled = false;
+            console.error("Error al guardar en inventario:", err);
+            const errorMsg = err.response?.data?.message || err.message || "Error desconocido";
+            alert(`❌ Error al guardar en inventario:\n\n${errorMsg}\n\nVerifica que:\n- El almacén exista\n- La ubicación sea válida\n- El producto exista`);
+            btn.textContent = "Confirmar y Guardar";
+            btn.disabled = false;
         }
     };
   }
