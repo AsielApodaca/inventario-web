@@ -1,5 +1,5 @@
 import db from '../models/index.js';
-const { MovimientoInventario, Producto, Usuario } = db;
+const { MovimientoInventario, Producto, Usuario, Almacen, Ubicacion } = db;
 
 class MovimientoInventarioDAO {
   async registrarMovimiento(data) {
@@ -16,7 +16,9 @@ class MovimientoInventarioDAO {
         where: { id_producto }, 
         include: [
           { model: Producto, as: 'producto' },
-          { model: Usuario, as: 'usuario' }
+          { model: Usuario, as: 'usuario' },
+          { model: Almacen, as: 'almacen' },
+          { model: Ubicacion, as: 'ubicacion' }
         ],
         order: [['fecha_movimiento', 'DESC']]
       });
@@ -31,7 +33,9 @@ class MovimientoInventarioDAO {
         where: { fecha_movimiento: rango },
         include: [
           { model: Producto, as: 'producto' },
-          { model: Usuario, as: 'usuario' }
+          { model: Usuario, as: 'usuario' },
+          { model: Almacen, as: 'almacen' },
+          { model: Ubicacion, as: 'ubicacion' }
         ],
         order: [['fecha_movimiento', 'DESC']]
       });
@@ -45,7 +49,9 @@ class MovimientoInventarioDAO {
       return await MovimientoInventario.findAll({
         include: [
           { model: Producto, as: 'producto' },
-          { model: Usuario, as: 'usuario' }
+          { model: Usuario, as: 'usuario' },
+          { model: Almacen, as: 'almacen' },
+          { model: Ubicacion, as: 'ubicacion' }
         ],
         order: [['fecha_movimiento', 'DESC']]
       });
@@ -59,9 +65,21 @@ class MovimientoInventarioDAO {
       return await MovimientoInventario.findByPk(id, {
         include: [
           { model: Producto, as: 'producto' },
-          { model: Usuario, as: 'usuario' }
+          { model: Usuario, as: 'usuario' },
+          { model: Almacen, as: 'almacen' },
+          { model: Ubicacion, as: 'ubicacion' }
         ]
       });
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async actualizarEstado(id, estado) {
+    try {
+      const movimiento = await MovimientoInventario.findByPk(id);
+      if (!movimiento) return null;
+      return await movimiento.update({ estado });
     } catch (error) {
       throw error;
     }

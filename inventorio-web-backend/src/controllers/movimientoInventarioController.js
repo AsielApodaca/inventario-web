@@ -342,4 +342,44 @@ export const movimientoInventarioController = {
       next(error);
     }
   },
+
+  // POST /api/movimientos-inventario/:id/procesar
+  procesarMovimiento: async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const { id_ubicacion } = req.body;
+
+      if (!id_ubicacion || isNaN(id_ubicacion)) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'ID de ubicación es requerido'
+        });
+      }
+
+      const resultado = await MovimientoInventarioService.procesarMovimiento(
+        parseInt(id),
+        parseInt(id_ubicacion)
+      );
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Movimiento procesado exitosamente y inventario actualizado',
+        data: resultado
+      });
+    } catch (error) {
+      if (error.message.includes('no encontrado') || 
+          error.message.includes('no puede ser procesado') ||
+          error.message.includes('inválido') ||
+          error.message.includes('no existe') ||
+          error.message.includes('no pertenece') ||
+          error.message.includes('Stock insuficiente') ||
+          error.message.includes('debe tener')) {
+        return res.status(400).json({
+          status: 'error',
+          message: error.message
+        });
+      }
+      next(error);
+    }
+  },
 };

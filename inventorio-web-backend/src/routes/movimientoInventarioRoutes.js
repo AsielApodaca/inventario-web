@@ -39,6 +39,9 @@ router.get('/producto/:id_producto/resumen', validateMovimientosByProducto, movi
 // GET /api/movimientos-inventario/:id - Obtener movimiento por ID
 router.get('/:id', validateMovimientoInventarioId, movimientoInventarioController.getMovimientoById);
 
+// POST /api/movimientos-inventario/:id/procesar - Procesar movimiento y actualizar inventario
+router.post('/:id/procesar', requireAdmin, validateMovimientoInventarioId, movimientoInventarioController.procesarMovimiento);
+
 // POST /api/movimientos-inventario - Crear movimiento genérico
 router.post('/', requireAdmin, validateCreateMovimientoInventario, movimientoInventarioController.createMovimiento);
 

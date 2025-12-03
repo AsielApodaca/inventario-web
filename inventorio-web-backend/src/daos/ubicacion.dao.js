@@ -27,6 +27,14 @@ class UbicacionDAO {
       throw error;
     }
   }
+
+  async obtenerPorId(id) {
+    try {
+      return await Ubicacion.findByPk(id);
+    } catch (error) {
+      throw error;
+    }
+  }
 }
 
 export default new UbicacionDAO();

@@ -35,6 +35,27 @@ class InventarioDAO {
       throw error;
     }
   }
+
+  async buscarPorProductoYUbicacion(id_producto, id_ubicacion) {
+    try {
+      return await Inventario.findOne({ 
+        where: { id_producto, id_ubicacion } 
+      });
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async incrementarCantidad(id, cantidad) {
+    try {
+      const inventario = await Inventario.findByPk(id);
+      if (!inventario) return null;
+      const nuevaCantidad = (inventario.cantidad || 0) + cantidad;
+      return await inventario.update({ cantidad: nuevaCantidad });
+    } catch (error) {
+      throw error;
+    }
+  }
 }
 
 export default new InventarioDAO();
