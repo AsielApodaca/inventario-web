@@ -40,9 +40,9 @@ function extractArray(response) {
 
 export const MovementService = {
   // GET /movimientos-inventario
-  async getAll(filters = {}) {
+  async getAll() {
     try {
-      const response = await apiClient.get(ENDPOINTS.MOVEMENTS.BASE, { params: filters })
+      const response = await apiClient.get(ENDPOINTS.MOVEMENTS.BASE);
       return extractArray(response);
     } catch (error) {
       console.error("MovementService error:", error);

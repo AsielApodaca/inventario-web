@@ -86,7 +86,7 @@ class MovimientoInventarioService {
     };
   }
 
-  async consultarPorFecha(fecha_inicio, fecha_fin, opciones = {}) {
+  async consultarPorFecha(fecha_inicio, fecha_fin) {
     if (!fecha_inicio || !fecha_fin) {
       throw new Error('Las fechas de inicio y fin son requeridas');
     }

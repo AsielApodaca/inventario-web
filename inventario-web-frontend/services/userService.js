@@ -35,22 +35,21 @@ export const UserService = {
     try {
       const response = await apiClient.get(ENDPOINTS.USERS.BASE);
       
-      console.log("👥 [UserService] Respuesta cruda:", response.data); // Debug
+      console.log("👥 [UserService] Respuesta cruda:", response.data);
 
-      const foundArray = findArrayRecursive(response.data);
-      
-      if (foundArray) {
-          console.log(`✅ [UserService] Encontrados ${foundArray.length} usuarios.`);
-          return foundArray;
-      } else {
-          console.warn("⚠️ [UserService] No se encontró array de usuarios.");
-          return [];
-      }
+      // Tu backend retorna: { status: 'success', data: { count: 2, data: [...] } }
+      // Usamos el buscador recursivo para encontrar el array
+      const usuarios = findArrayRecursive(response.data) || [];
+
+      console.log(`✅ [UserService] Usuarios recibidos: ${usuarios.length}`, usuarios);
+
+      return usuarios;
 
     } catch (error) {
       console.error("❌ UserService error:", error);
       // Si el error es 403, es porque tu usuario no es Admin
       if (error.response && error.response.status === 403) {
+          console.warn("⚠️ Acceso Denegado: Se requieren permisos de Administrador");
           alert("Acceso Denegado: Se requieren permisos de Administrador para ver usuarios.");
       }
       return [];
