@@ -24,7 +24,7 @@ router.get('/', (req, res) => {
   });
 });
 
-// GET /api/inventario/stock-total - Obtener stock total (no implementado)
+// GET /api/inventario/stock-total - Obtener stock total (implementado)
 router.get('/stock-total', inventarioController.getStockTotal);
 
 // GET /api/inventario/producto/:id_producto - Obtener stock por producto

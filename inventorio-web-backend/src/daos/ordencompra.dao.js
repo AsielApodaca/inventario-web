@@ -10,6 +10,14 @@ class OrdenCompraDAO {
     }
   }
 
+  async obtenerPorId(id) {
+    try {
+      return await Orden_Compra.findByPk(id, { include: ['proveedor'] });
+    } catch (error) {
+      throw error;
+    }
+  }
+
   async listarOrdenes() {
     try {
       return await Orden_Compra.findAll({ include: ['proveedor'] });

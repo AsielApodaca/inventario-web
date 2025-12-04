@@ -1,18 +1,59 @@
 import { WarehouseService } from "../services/warehouseService.js"
 import { InventoryService } from "../services/inventoryService.js"
+import { LocationService } from "../services/locationService.js"
+import { AlmacenUbicacionService } from "../services/almacenUbicacionService.js"
+import { UserService } from "../services/userService.js"
 
 class WarehousesMFE extends HTMLElement {
   constructor() {
     super()
     this.attachShadow({ mode: "open" })
     this.warehouses = []
+    this.users = []
     this.loading = true
+    this.currentWarehouse = null
+    this.warehouseLocations = []
+    // Mapa temporal para guardar responsables (id_almacen -> nombre_responsable)
+    this.responsablesMap = new Map()
   }
 
   async connectedCallback() {
     this.render();
-    await this.loadWarehouses();
+    await this.loadUsers(); // Cargar usuarios primero
+    this.loadWarehouses();
     this.attachEventListeners();
+  }
+
+  async loadUsers() {
+    try {
+        console.log("🔍 Cargando usuarios...");
+        const usuarios = await UserService.getAll();
+        this.users = Array.isArray(usuarios) ? usuarios : [];
+        console.log(`✅ Usuarios cargados: ${this.users.length}`, this.users);
+        this.updateUserSelect();
+    } catch (e) {
+        console.error("❌ Error cargando usuarios:", e);
+        this.users = [];
+        this.updateUserSelect();
+    }
+  }
+
+  updateUserSelect() {
+    const select = this.shadowRoot.querySelector('#new-wh-manager');
+    if(!select) return;
+    
+    if(this.users.length === 0) {
+        select.innerHTML = `<option value="">Sin usuarios disponibles</option>`;
+    } else {
+        select.innerHTML = `<option value="">-- Seleccionar Responsable * --</option>` + 
+            this.users.map(u => {
+                // Prioridad: nombre completo > username > id
+                const displayName = u.nombre 
+                    ? `${u.nombre} ${u.apellido || ''}`.trim()
+                    : u.username || `Usuario #${u.id}`;
+                return `<option value="${u.id}">${displayName}</option>`;
+            }).join('');
+    }
   }
 
   async loadWarehouses() {
@@ -20,294 +61,502 @@ class WarehousesMFE extends HTMLElement {
     if (loadingOverlay) loadingOverlay.style.display = "flex"
     
     try {
-      // 1. Obtener lista base
       const response = await WarehouseService.getAll();
       this.warehouses = Array.isArray(response.data) ? response.data : [];
-
-      // 2. Renderizar base inmediatamente
       this.updateWarehousesGrid();
 
-      if (this.warehouses.length === 0) return;
+      if (this.warehouses.length === 0) {
+          if (loadingOverlay) loadingOverlay.style.display = "none";
+          return;
+      }
 
-      // 3. Cargar detalles en segundo plano
       await Promise.allSettled(
         this.warehouses.map(async (warehouse, index) => {
           try {
             const whId = warehouse.id || warehouse.id_almacen;
             if (!whId) return;
 
-            // Cargar Ubicaciones
             const ubicacionesRes = await WarehouseService.getUbicaciones(whId);
-            warehouse.ubicaciones = ubicacionesRes.data || [];
-
-            // Contar productos
-            let total = 0;
-            if (warehouse.ubicaciones.length > 0) {
-                const inventoryPromises = warehouse.ubicaciones.map(ub => 
-                    InventoryService.getByUbicacion(ub.id || ub.id_ubicacion)
-                );
-                const results = await Promise.all(inventoryPromises);
-                results.forEach(res => {
-                    const items = res.data || [];
-                    total += items.length;
-                });
-            }
-            warehouse.totalProductos = total;
-            
-            // Actualizar tarjeta específica
-            this.updateCard(index, warehouse);
-
-          } catch (error) {
-            console.warn(`Error detalles almacén ${index}:`, error);
+            warehouse.totalLocations = Array.isArray(ubicacionesRes.data) ? ubicacionesRes.data.length : 0;
+            this.updateWarehouseCard(index, warehouse);
+          } catch (err) {
+            console.warn(`Error loading details for warehouse ${warehouse.id}`, err);
           }
         })
       );
-      
     } catch (error) {
-      console.error("Error loading warehouses:", error);
+      console.error("Error loading warehouses:", error)
     } finally {
-      if (loadingOverlay) loadingOverlay.style.display = "none";
+      if (loadingOverlay) loadingOverlay.style.display = "none"
     }
   }
 
   updateWarehousesGrid() {
-    const container = this.shadowRoot.querySelector(".grid-warehouses");
-    if (!container) return;
-
-    // Estado Vacío
+    const grid = this.shadowRoot.querySelector(".grid")
+    if (!grid) return
+    
     if (this.warehouses.length === 0) {
-        container.innerHTML = `
-            <div style="grid-column: 1/-1; text-align: center; padding: 60px; color: #9CA3AF; border: 2px dashed #E5E7EB; border-radius: 12px;">
-                <div style="font-size: 3rem; margin-bottom: 10px;">🏭</div>
-                <p style="margin-bottom: 20px;">No hay almacenes registrados.</p>
-                <button class="btn-primary add-new-btn">Crear el Primer Almacén</button>
-            </div>`;
-        this.attachAddEvent(container);
+        grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:40px; color:#6b7280;">No hay almacenes registrados.</div>`;
         return;
     }
 
-    // Renderizado normal
-    const cardsHTML = this.warehouses.map((w, i) => this.getCardHTML(w, i)).join('');
-    const addCardHTML = `
-      <div class="wh-card add-card add-new-btn">
-        <div class="add-icon">+</div>
-        <div style="font-weight: 500;">Nuevo Almacén</div>
-      </div>
-    `;
-
-    container.innerHTML = cardsHTML + addCardHTML;
-    this.attachCardEvents(container);
+    grid.innerHTML = this.warehouses.map((wh, index) => this.getWarehouseCardHTML(wh, index)).join("")
+    
+    grid.querySelectorAll('.btn-manage').forEach(btn => {
+        btn.onclick = (e) => {
+            const index = e.target.dataset.index;
+            this.openLocationManager(this.warehouses[index]);
+        };
+    });
   }
 
-  getCardHTML(warehouse, index) {
-      const displayId = warehouse.id || warehouse.id_almacen || '?';
-      const numLocations = warehouse.ubicaciones?.length || 0;
-      const numProducts = warehouse.totalProductos !== undefined ? warehouse.totalProductos : '-';
-      
-      let stockPercent = 0;
-      let stockColor = 'gray';
-      let stockText = 'Calculating...';
-      
-      if (typeof numProducts === 'number' && numProducts > 0) {
-          stockPercent = Math.min((numProducts / 50) * 100, 100);
-          if (stockPercent > 60) { stockColor = 'green'; stockText = 'Healthy'; }
-          else if (stockPercent > 20) { stockColor = 'orange'; stockText = 'Low Stock'; }
-          else { stockColor = 'red'; stockText = 'Critical'; }
-      } else if (numProducts === 0) {
-          stockColor = 'red'; stockText = 'Empty';
-      }
+  getWarehouseCardHTML(wh, index) {
+    // Buscar el responsable: primero en el backend, luego en el mapa local
+    const responsableBackend = wh.responsable;
+    const responsableLocal = this.responsablesMap.get(wh.id);
+    
+    console.log(`🏢 Almacén ${wh.id}:`, {
+        backend: responsableBackend,
+        local: responsableLocal,
+        mapa: Array.from(this.responsablesMap.entries())
+    });
+    
+    const nombreMostrar = responsableBackend || responsableLocal || 'Sin asignar';
 
-      return `
-        <div class="wh-card" data-index="${index}">
-          <div class="wh-header">
-            <div>
-              <div class="wh-name">${warehouse.nombre}</div>
-              <div class="wh-id">WH-${String(displayId).padStart(3, '0')}</div>
-            </div>
-            <div class="wh-location">
-                <span>📍</span> ${warehouse.direccion || 'Sin dirección'}
-            </div>
-          </div>
-          
-          <div class="stats-grid">
-            <div class="stat-box">
-              <div class="stat-val">${numLocations}</div>
-              <div class="stat-label">Ubicaciones</div>
-            </div>
-            <div class="stat-box">
-              <div class="stat-val">${numProducts}</div>
-              <div class="stat-label">Productos</div>
-            </div>
-          </div>
-
-          <div class="progress-container">
-            <div class="progress-header">
-              <span>Nivel de Stock</span>
-              <span style="color: var(--${stockColor}, #666)">${stockPercent}% ${stockText}</span>
-            </div>
-            <div class="progress-bar">
-              <div class="progress-fill bg-${stockColor}" style="width: ${stockPercent}%"></div>
-            </div>
+    return `
+      <div class="dashboard-card" id="card-${index}">
+        <div class="card-header">
+          <div class="card-icon">🏢</div>
+          <div class="card-info">
+            <h3>${wh.nombre}</h3>
+            <p>${wh.direccion || 'Sin dirección'}</p>
           </div>
         </div>
-      `;
+        
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:15px; padding:10px; background:#F3F4F6; border-radius:8px; border:1px solid #E5E7EB;">
+            <div style="background:#D1D5DB; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.8rem;">👤</div> 
+            <div>
+                <span style="font-size:0.75rem; color:#6B7280; display:block; line-height:1;">ENCARGADO</span>
+                <strong style="font-size:0.9rem; color:#374151;">${nombreMostrar}</strong>
+            </div>
+        </div>
+        
+        <div class="stats-grid">
+           <div class="stat-item">
+              <span class="stat-label">Ubicaciones</span>
+              <span class="stat-value" id="loc-${index}">${wh.totalLocations || '-'}</span>
+           </div>
+           <div class="stat-item">
+              <span class="stat-label">Estado</span>
+              <span class="stat-value" style="font-size:0.9rem; color:#059669; font-weight:600;">Activo</span>
+           </div>
+        </div>
+
+        <div style="margin-top:15px; padding-top:10px; border-top:1px solid #eee;">
+            <button class="btn-primary btn-manage" data-index="${index}" style="width:100%;">
+                Gestionar Ubicaciones
+            </button>
+        </div>
+      </div>
+    `
   }
 
-  updateCard(index, warehouse) {
-      const oldCard = this.shadowRoot.querySelector(`.wh-card[data-index="${index}"]`);
-      if (oldCard) {
-          const tempDiv = document.createElement('div');
-          tempDiv.innerHTML = this.getCardHTML(warehouse, index);
-          const newCard = tempDiv.firstElementChild;
-          oldCard.replaceWith(newCard);
-          // Reconectar click
-          newCard.addEventListener('click', () => alert(`Detalles: ${warehouse.nombre}`));
-      }
+  updateWarehouseCard(index, wh) {
+    const locSpan = this.shadowRoot.querySelector(`#loc-${index}`);
+    if(locSpan) locSpan.textContent = wh.totalLocations || 0;
   }
 
-  attachCardEvents(container) {
-      container.querySelectorAll('.wh-card:not(.add-card)').forEach(card => {
-          card.addEventListener('click', () => {
-              const index = card.getAttribute('data-index');
-              const wh = this.warehouses[index];
-              alert(`Almacén: ${wh.nombre}\nResponsable: ${wh.responsable || 'N/A'}`);
-          });
-      });
-      this.attachAddEvent(container);
+  async openLocationManager(warehouse) {
+    this.currentWarehouse = warehouse;
+    this.shadowRoot.querySelector('#main-view').style.display = 'none';
+    this.shadowRoot.querySelector('#detail-view').style.display = 'block';
+    this.shadowRoot.querySelector('#detail-title').textContent = warehouse.nombre;
+    this.shadowRoot.querySelector('#detail-subtitle').textContent = warehouse.direccion || '';
+    
+    // Buscar el responsable: primero en el backend, luego en el mapa local
+    const nombreEncargado = warehouse.responsable 
+        || this.responsablesMap.get(warehouse.id)
+        || 'No asignado';
+    
+    this.shadowRoot.querySelector('#detail-manager').textContent = nombreEncargado;
+    await this.loadLocations(warehouse.id);
   }
 
-  attachAddEvent(container) {
-      const addBtn = container.querySelector('.add-new-btn');
-      if(addBtn) addBtn.addEventListener('click', () => this.showAddWarehouseModal());
+  async loadLocations(whId) {
+    const listContainer = this.shadowRoot.querySelector('#locations-list');
+    listContainer.innerHTML = '<div class="spinner"></div>';
+    try {
+        const res = await AlmacenUbicacionService.getByAlmacen(whId);
+        
+        console.log("📦 [Raw] Respuesta ubicaciones:", res);
+        
+        // El backend retorna: { data: { status: 'success', data: [...] } }
+        // Necesitamos llegar hasta res.data.data.data
+        if (res?.data?.data?.data && Array.isArray(res.data.data.data)) {
+            this.warehouseLocations = res.data.data.data;
+        } else if (res?.data?.data && Array.isArray(res.data.data)) {
+            this.warehouseLocations = res.data.data;
+        } else if (Array.isArray(res?.data)) {
+            this.warehouseLocations = res.data;
+        } else if (Array.isArray(res)) {
+            this.warehouseLocations = res;
+        } else {
+            this.warehouseLocations = [];
+        }
+        
+        console.log("📦 Ubicaciones procesadas:", this.warehouseLocations);
+        this.renderLocationsList();
+    } catch (e) {
+        console.error("Error cargando ubicaciones:", e);
+        this.warehouseLocations = [];
+        listContainer.innerHTML = '<p style="color:red">Error cargando ubicaciones</p>';
+    }
+  }
+
+  renderLocationsList() {
+    const container = this.shadowRoot.querySelector('#locations-list');
+    
+    // Asegurar que sea un array
+    if (!Array.isArray(this.warehouseLocations)) {
+        console.error("❌ warehouseLocations no es un array:", this.warehouseLocations);
+        this.warehouseLocations = [];
+    }
+    
+    if(this.warehouseLocations.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center; padding:30px; background:#f9fafb; border-radius:8px; border:1px dashed #d1d5db;">
+                <p style="color:#6b7280; margin:0;">No hay ubicaciones creadas.</p>
+                <small>Usa el formulario para crear ubicaciones (Pasillo-Estante-Nivel).</small>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = this.warehouseLocations.map(loc => {
+        const pasillo = loc.pasillo || '-';
+        const estante = loc.estante || '-';
+        const nivel = loc.nivel || '-';
+        const ubicacionCodigo = `${pasillo}-${estante}-${nivel}`;
+        
+        return `
+        <div class="location-item">
+            <div style="display:flex; align-items:center; gap:10px; flex:1;">
+                <div class="loc-icon">📦</div>
+                <div>
+                    <div style="font-weight:600; color:#374151; font-size:1rem;">${ubicacionCodigo}</div>
+                    <div style="font-size:0.8rem; color:#9ca3af; margin-top:2px;">
+                        Pasillo: ${pasillo} • Estante: ${estante} • Nivel: ${nivel}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    }).join('');
+  }
+
+  closeLocationManager() {
+    this.shadowRoot.querySelector('#detail-view').style.display = 'none';
+    this.shadowRoot.querySelector('#main-view').style.display = 'block';
+    this.currentWarehouse = null;
+    this.loadWarehouses();
   }
 
   attachEventListeners() {
-      const headerBtn = this.shadowRoot.querySelector('.header-add-btn');
-      if (headerBtn) {
-          headerBtn.addEventListener('click', () => this.showAddWarehouseModal());
-      }
-  }
+    // Crear Almacén con Encargado
+    const createForm = this.shadowRoot.querySelector('#create-wh-form');
+    if(createForm) {
+        createForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = createForm.querySelector('button[type="submit"]');
+            const originalText = btn.textContent;
+            
+            try {
+                btn.disabled = true;
+                btn.textContent = "Creando...";
+                
+                const name = this.shadowRoot.querySelector('#new-wh-name').value.trim();
+                const addr = this.shadowRoot.querySelector('#new-wh-addr').value.trim();
+                const managerId = this.shadowRoot.querySelector('#new-wh-manager').value;
 
-  showAddWarehouseModal() {
-      const modal = document.createElement('div');
-      modal.innerHTML = `
-        <div class="modal-overlay">
-            <div class="modal-content">
-                <h2>Nuevo Almacén</h2>
-                <form id="new-wh-form">
-                    <label>Nombre</label>
-                    <input name="nombre" class="input" required>
-                    <label>Dirección</label>
-                    <input name="direccion" class="input" required>
-                    <label>Responsable</label>
-                    <input name="responsable" class="input" required>
-                    <div style="display:flex; gap:10px; margin-top:20px; justify-content:flex-end;">
-                        <button type="button" class="btn-outline close-modal">Cancelar</button>
-                        <button type="submit" class="btn-primary">Guardar</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-      `;
-      this.shadowRoot.appendChild(modal);
-      
-      modal.querySelector('.close-modal').addEventListener('click', () => modal.remove());
-      
-      modal.querySelector('form').addEventListener('submit', async (e) => {
-          e.preventDefault();
-          const formData = new FormData(e.target);
-          const data = Object.fromEntries(formData.entries());
-          
-          try {
-              await WarehouseService.create(data);
-              alert("✅ Almacén creado");
-              modal.remove();
-              this.loadWarehouses(); // Recargar lista
-          } catch(err) {
-              alert("Error: " + err.message);
-          }
-      });
+                if (!name) {
+                    alert("El nombre del almacén es requerido");
+                    return;
+                }
+
+                // El responsable es requerido
+                if (!managerId) {
+                    alert("Debes seleccionar un encargado/responsable");
+                    return;
+                }
+
+                // Buscar el nombre del usuario seleccionado
+                const usuario = this.users.find(u => u.id == parseInt(managerId));
+                const responsable = usuario 
+                    ? (usuario.nombre ? `${usuario.nombre} ${usuario.apellido || ''}`.trim() : usuario.username)
+                    : "Desconocido";
+
+                const data = { 
+                    nombre: name, 
+                    direccion: addr || null,
+                    responsable: responsable
+                };
+
+                console.log("📤 Creando almacén:", data);
+                const response = await WarehouseService.create(data);
+                
+                console.log("📥 Respuesta del backend al crear:", response);
+                
+                // Guardar el responsable en el mapa local para mostrarlo después
+                // Intentar encontrar el ID en diferentes ubicaciones de la respuesta
+                let almacenId = null;
+                
+                if (response?.data?.data?.id) {
+                    almacenId = response.data.data.id;
+                } else if (response?.data?.id) {
+                    almacenId = response.data.id;
+                } else if (response?.id) {
+                    almacenId = response.id;
+                }
+                
+                if (almacenId) {
+                    this.responsablesMap.set(almacenId, responsable);
+                    console.log("💾 Guardado responsable localmente:", almacenId, "->", responsable);
+                    console.log("🗺️ Mapa completo:", Array.from(this.responsablesMap.entries()));
+                } else {
+                    console.warn("⚠️ No se pudo obtener el ID del almacén creado:", response);
+                }
+                
+                createForm.reset();
+                this.updateUserSelect();
+                await this.loadWarehouses();
+                alert("✅ Almacén creado exitosamente");
+                
+            } catch(err) { 
+                console.error("Error creando almacén:", err);
+                const errorMsg = err.response?.data?.message || err.message || "Error desconocido";
+                alert("❌ Error: " + errorMsg); 
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        };
+    }
+
+    this.shadowRoot.querySelector('#btn-back').onclick = () => this.closeLocationManager();
+
+    // Crear Ubicación (Formato BD: pasillo, estante, nivel)
+    const locForm = this.shadowRoot.querySelector('#form-create-location');
+    if(locForm) {
+        locForm.onsubmit = async (e) => {
+            e.preventDefault();
+            if(!this.currentWarehouse) {
+                alert("No hay almacén seleccionado");
+                return;
+            }
+
+            const btn = locForm.querySelector('button[type="submit"]');
+            const originalText = btn.textContent;
+            
+            try {
+                btn.disabled = true;
+                btn.textContent = "Guardando...";
+                
+                const pasillo = this.shadowRoot.querySelector('#loc-pasillo').value.trim();
+                const estante = this.shadowRoot.querySelector('#loc-estante').value.trim();
+                const nivel = this.shadowRoot.querySelector('#loc-nivel').value.trim();
+
+                if (!pasillo || !estante || !nivel) {
+                    alert("Todos los campos son requeridos");
+                    return;
+                }
+
+                const ubicacionData = {
+                    id_almacen: this.currentWarehouse.id,
+                    pasillo: pasillo,
+                    estante: estante,
+                    nivel: nivel
+                };
+
+                console.log("📍 Creando ubicación:", ubicacionData);
+                
+                await LocationService.create(ubicacionData);
+                
+                locForm.reset();
+                // Resetear preview
+                const preview = this.shadowRoot.querySelector('#preview-ubicacion');
+                if(preview) preview.textContent = '-';
+                
+                await this.loadLocations(this.currentWarehouse.id);
+                alert(`✅ Ubicación ${pasillo}-${estante}-${nivel} creada exitosamente`);
+                
+            } catch(err) {
+                console.error("Error creando ubicación:", err);
+                const errorMsg = err.response?.data?.message || err.message || "Error desconocido";
+                alert("❌ Error: " + errorMsg);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        };
+    }
   }
 
   render() {
     this.shadowRoot.innerHTML = `
-      <link rel="stylesheet" href="styles/global.css">
       <style>
-        :host { display: block; padding: 20px; box-sizing: border-box; }
-        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-        .section-header h1 { margin: 0; font-size: 1.5rem; color: #111827; }
+        :host { display: block; font-family: 'Inter', system-ui, sans-serif; background-color: #f3f4f6; min-height: 100vh; padding: 2rem; color: #1f2937; }
         
-        /* Grid Layout */
-        .grid-warehouses { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        h1 { font-size: 1.875rem; font-weight: 700; color: #111827; margin: 0; }
         
-        /* Card Styles (Restaurado) */
-        .wh-card {
-            background: white;
-            border: 1px solid #E5E7EB;
-            border-radius: 12px;
-            padding: 20px;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-        .wh-card:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; margin-top:20px; }
+        .dashboard-card { background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 1px solid #e5e7eb; transition: transform 0.2s; }
+        .dashboard-card:hover { transform: translateY(-4px); }
         
-        /* Header & Location */
-        .wh-header { display: flex; justify-content: space-between; align-items: flex-start; }
-        .wh-name { font-weight: 700; font-size: 1.1rem; color: #1F2937; }
-        .wh-id { font-size: 0.75rem; color: #9CA3AF; }
-        .wh-location { font-size: 0.85rem; color: #6B7280; display: flex; align-items: center; gap: 4px; }
+        .card-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+        .card-icon { width: 48px; height: 48px; background: #e0e7ff; color: #4F46E5; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
+        .card-info h3 { margin: 0; font-size: 1.125rem; font-weight: 600; }
+        .card-info p { margin: 0; color: #6b7280; font-size: 0.875rem; }
         
-        /* Stats Grid (Sin fondo gris) */
-        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-        .stat-box { } 
-        .stat-val { font-weight: 700; font-size: 1.2rem; color: #111827; }
-        .stat-label { font-size: 0.7rem; color: #6B7280; text-transform: uppercase; }
-        
-        /* Progress Bar con Texto */
-        .progress-container { }
-        .progress-header { display: flex; justify-content: space-between; font-size: 0.75rem; color: #6B7280; margin-bottom: 4px; }
-        .progress-bar { height: 6px; background: #E5E7EB; border-radius: 10px; overflow: hidden; }
-        .progress-fill { height: 100%; border-radius: 10px; }
-        
-        /* Colores y Variables CSS */
-        .bg-green { background: #10B981; --green: #10B981; }
-        .bg-orange { background: #F59E0B; --orange: #F59E0B; }
-        .bg-red { background: #EF4444; --red: #EF4444; }
-        .bg-gray { background: #D1D5DB; --gray: #6B7280; }
-        
-        /* Add Card */
-        .add-card { border: 2px dashed #E5E7EB; align-items: center; justify-content: center; min-height: 200px; color: #6B7280; gap: 8px; }
-        .add-card:hover { border-color: #4F46E5; color: #4F46E5; }
-        .add-icon { font-size: 2rem; }
-        
-        /* Loading & Modal */
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom:10px; }
+        .stat-item { display: flex; flex-direction: column; }
+        .stat-label { font-size: 0.75rem; color: #6b7280; text-transform: uppercase; font-weight: 600; }
+        .stat-value { font-size: 1.25rem; font-weight: 700; color: #111827; }
+
+        .btn-primary { background: #4F46E5; color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 0.5rem; font-weight: 500; cursor: pointer; transition: background 0.2s; }
+        .btn-primary:hover:not(:disabled) { background: #4338ca; }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-secondary { background: white; border: 1px solid #d1d5db; color: #374151; padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer; }
+
+        .form-input { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box; background: #f9fafb; font-size: 0.95rem; }
+        .form-input:focus { border-color: #4F46E5; background:white; outline:none; }
+
         .loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.8); z-index: 1000; display: none; align-items: center; justify-content: center; }
         .spinner { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #4F46E5; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* Modal Styles */
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; display: flex; justify-content: center; align-items: center; }
-        .modal-content { background: white; padding: 2rem; border-radius: 12px; width: 400px; }
-        .input { width: 100%; padding: 8px; border: 1px solid #D1D5DB; border-radius: 6px; margin-bottom: 10px; box-sizing: border-box; }
-        .btn-primary { background: #4F46E5; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; }
-        .btn-outline { background: white; border: 1px solid #D1D5DB; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+        .detail-layout { display: grid; grid-template-columns: 1fr 400px; gap: 24px; margin-top: 20px; }
+        .panel { background: white; border-radius: 12px; padding: 24px; border: 1px solid #e5e7eb; }
+        .location-item { display: flex; justify-content: space-between; align-items: center; padding: 14px; border-bottom: 1px solid #f3f4f6; transition: background 0.15s; }
+        .location-item:hover { background: #f9fafb; }
+        .location-item:last-child { border-bottom: none; }
+        .loc-icon { background:#E0E7FF; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.1rem; }
+        
+        @media (max-width: 900px) { .detail-layout { grid-template-columns: 1fr; } }
       </style>
 
       <div class="loading-overlay"><div class="spinner"></div></div>
 
-      <div class="section-header">
-         <div>
-            <h1>Almacenes</h1>
-            <p style="margin:0; color:#6B7280;">Gestión de edificios e inventario.</p>
-         </div>
-         <button class="btn-primary header-add-btn">+ Almacén</button>
+      <div id="main-view">
+          <div class="header">
+            <h1>🏢 Almacenes</h1>
+          </div>
+
+          <div style="background:white; padding:20px; border-radius:12px; border:1px solid #e5e7eb; margin-bottom:20px; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+            <h3 style="margin:0 0 15px 0; font-size:1.1rem; color:#111827; display:flex; align-items:center; gap:8px;">
+                <span style="font-size:1.3rem;">➕</span> Registrar Nuevo Almacén
+            </h3>
+            <form id="create-wh-form" style="display:flex; gap:15px; flex-wrap:wrap; align-items:end;">
+                <div style="flex:1; min-width:200px;">
+                    <label style="display:block; font-size:0.8rem; font-weight:600; margin-bottom:5px; color:#374151;">Nombre *</label>
+                    <input id="new-wh-name" class="form-input" placeholder="Ej. Almacén Central" required>
+                </div>
+                <div style="flex:2; min-width:200px;">
+                    <label style="display:block; font-size:0.8rem; font-weight:600; margin-bottom:5px; color:#374151;">Dirección</label>
+                    <input id="new-wh-addr" class="form-input" placeholder="Calle, Número, Ciudad">
+                </div>
+                
+                <div style="flex:1; min-width:200px;">
+                    <label style="display:block; font-size:0.8rem; font-weight:600; margin-bottom:5px; color:#374151;">👤 Encargado / Responsable *</label>
+                    <select id="new-wh-manager" class="form-input" required>
+                        <option value="">Cargando usuarios...</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn-primary" style="height:42px;">Crear Almacén</button>
+            </form>
+          </div>
+
+          <div class="grid"></div>
       </div>
 
-      <div class="grid-warehouses"></div>
-    `;
+      <div id="detail-view" style="display:none;">
+          <div class="header">
+             <div style="display:flex; align-items:center; gap:15px;">
+                 <button id="btn-back" class="btn-secondary">← Volver</button>
+                 <div>
+                    <h1 id="detail-title" style="margin:0; font-size:1.5rem;">Nombre</h1>
+                    <div style="display:flex; gap:10px; align-items:center; margin-top:5px;">
+                        <span id="detail-subtitle" style="font-size:0.9rem; color:#6b7280;">Dirección</span>
+                        <span style="color:#ddd;">|</span>
+                        <span style="font-size:0.9rem; color:#4B5563;">👤 Encargado: <strong id="detail-manager">-</strong></span>
+                    </div>
+                 </div>
+             </div>
+          </div>
+
+          <div class="detail-layout">
+             <div class="panel">
+                <h3 style="margin-top:0; border-bottom:2px solid #E0E7FF; padding-bottom:15px; color:#4F46E5; display:flex; align-items:center; gap:8px;">
+                    <span>📦</span> Ubicaciones del Almacén
+                </h3>
+                <div id="locations-list"></div>
+             </div>
+
+             <div class="panel" style="height:fit-content;">
+                <h3 style="margin-top:0; color:#4F46E5; display:flex; align-items:center; gap:8px;">
+                    <span>➕</span> Nueva Ubicación
+                </h3>
+                <p style="font-size:0.85rem; color:#6b7280; margin:0 0 20px 0; line-height:1.5;">
+                    Define la ubicación física usando el formato estándar de tu almacén
+                </p>
+                <form id="form-create-location">
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:5px; color:#374151;">
+                            🚶 Pasillo *
+                        </label>
+                        <input id="loc-pasillo" class="form-input" placeholder="Ej. A, B, 1, 2..." maxlength="255" required>
+                    </div>
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:5px; color:#374151;">
+                            📚 Estante *
+                        </label>
+                        <input id="loc-estante" class="form-input" placeholder="Ej. 01, 02, A1..." maxlength="255" required>
+                    </div>
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:5px; color:#374151;">
+                            ⬆️ Nivel *
+                        </label>
+                        <input id="loc-nivel" class="form-input" placeholder="Ej. 1, 2, 3..." maxlength="255" required>
+                    </div>
+                    <div style="background:#E0E7FF; padding:12px; border-radius:8px; margin-bottom:15px; border:2px solid #C7D2FE;">
+                        <div style="font-size:0.75rem; color:#4338CA; font-weight:600; margin-bottom:4px;">VISTA PREVIA</div>
+                        <div style="font-size:1.1rem; font-weight:700; color:#4F46E5; font-family:monospace;" id="preview-ubicacion">-</div>
+                    </div>
+                    <button type="submit" class="btn-primary" style="width:100%;">✅ Agregar Ubicación</button>
+                </form>
+             </div>
+          </div>
+      </div>
+    `
+    
+    // Preview en tiempo real
+    setTimeout(() => {
+        const pasillo = this.shadowRoot.querySelector('#loc-pasillo');
+        const estante = this.shadowRoot.querySelector('#loc-estante');
+        const nivel = this.shadowRoot.querySelector('#loc-nivel');
+        const preview = this.shadowRoot.querySelector('#preview-ubicacion');
+        
+        const updatePreview = () => {
+            const p = pasillo?.value.trim() || '-';
+            const e = estante?.value.trim() || '-';
+            const n = nivel?.value.trim() || '-';
+            if(preview) preview.textContent = `${p}-${e}-${n}`;
+        };
+        
+        pasillo?.addEventListener('input', updatePreview);
+        estante?.addEventListener('input', updatePreview);
+        nivel?.addEventListener('input', updatePreview);
+    }, 100);
   }
 }
 

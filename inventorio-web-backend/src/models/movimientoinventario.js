@@ -20,6 +20,18 @@ export default (sequelize, DataTypes) => {
         foreignKey: 'id_usuario',
         as: 'usuario'
       });
+      
+      // Inventory movement belongs to a warehouse
+      MovimientoInventario.belongsTo(models.Almacen, {
+        foreignKey: 'id_almacen',
+        as: 'almacen'
+      });
+      
+      // Inventory movement belongs to a location
+      MovimientoInventario.belongsTo(models.Ubicacion, {
+        foreignKey: 'id_ubicacion',
+        as: 'ubicacion'
+      });
     }
   }
   MovimientoInventario.init({
@@ -28,7 +40,13 @@ export default (sequelize, DataTypes) => {
     cantidad: DataTypes.FLOAT,
     motivo: DataTypes.STRING,
     id_usuario: DataTypes.INTEGER,
-    fecha_movimiento: DataTypes.DATE
+    fecha_movimiento: DataTypes.DATE,
+    estado: {
+      type: DataTypes.STRING,
+      defaultValue: 'pendiente'
+    },
+    id_almacen: DataTypes.INTEGER,
+    id_ubicacion: DataTypes.INTEGER
   }, {
     sequelize,
     modelName: 'MovimientoInventario',

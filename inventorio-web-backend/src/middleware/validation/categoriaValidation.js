@@ -18,7 +18,7 @@ export const validateCreateCategoria = [
     .withMessage('La descripción contiene caracteres no válidos'),
 
   body('id_categoria_padre')
-    .optional()
+    .optional({ nullable: true })
     .isInt({ min: 1 })
     .withMessage('El ID de la categoría padre debe ser un número entero positivo'),
 
@@ -67,7 +67,7 @@ export const validateUpdateCategoria = [
     .withMessage('La descripción contiene caracteres no válidos'),
 
   body('id_categoria_padre')
-    .optional()
+    .optional({ nullable: true })
     .isInt({ min: 1 })
     .withMessage('El ID de la categoría padre debe ser un número entero positivo'),
 

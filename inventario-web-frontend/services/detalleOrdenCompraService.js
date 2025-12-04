@@ -24,7 +24,10 @@ export const DetalleOrdenCompraService = {
 
   // POST /ordenes-compra/:id_orden/detalles/multiples (Admin)
   async createMultiple(idOrden, detallesArray) {
-    return await apiClient.post(`${ENDPOINTS.ORDERS.BASE}/${idOrden}/detalles/multiples`, detallesArray)
+    // El backend espera un objeto { detalles: [...] }
+    return await apiClient.post(`${ENDPOINTS.ORDERS.BASE}/${idOrden}/detalles/multiples`, {
+      detalles: detallesArray,
+    })
   },
 
   // PUT /ordenes-compra/:id_orden/detalles/:id (Admin)

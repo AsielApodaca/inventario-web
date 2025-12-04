@@ -1,6 +1,7 @@
 import ordenCompraDAO from '../daos/ordencompra.dao.js';
 import detalleOrdenCompraDAO from '../daos/detalleordencompra.dao.js';
 import proveedorDAO from '../daos/proveedor.dao.js';
+import DetalleOrdenCompraService from './detalleOrdenCompraService.js';
 
 class OrdenCompraService {
   ESTADOS = {
@@ -34,7 +35,7 @@ class OrdenCompraService {
     data.fecha_orden = new Date();
     data.id_usuario = id_usuario;  // Corregido: era id_usuario_creador
     data.total = data.total || 0;
-
+    console.log("DEBUG - Datos enviados al DAO:", data); // <--- MIRA ESTO EN LA CONSOLA DEL SERVIDOR
     return await ordenCompraDAO.crearOrden(data);
   }
 
@@ -102,12 +103,12 @@ class OrdenCompraService {
       throw new Error('ID de orden inválido');
     }
 
-    const orden = await ordenCompraDAO.actualizarEstado(id, '');
+    const orden = await ordenCompraDAO.obtenerPorId(id);
     if (!orden) {
       throw new Error('Orden no encontrada');
     }
 
-    const detallesInfo = await detalleOrdenCompraDAO.consultarDetallesPorOrden(id);
+    const detallesInfo = await DetalleOrdenCompraService.consultarDetallesPorOrden(id);
 
     return {
       orden,
@@ -125,7 +126,7 @@ class OrdenCompraService {
       throw new Error(`Estado inválido. Estados permitidos: ${Object.values(this.ESTADOS).join(', ')}`);
     }
 
-    const ordenActual = await ordenCompraDAO.actualizarEstado(id, '');
+    const ordenActual = await ordenCompraDAO.obtenerPorId(id);
     if (!ordenActual) {
       throw new Error('Orden no encontrada');
     }
@@ -152,7 +153,7 @@ class OrdenCompraService {
   }
 
   async calcularTotalOrden(id_orden) {
-    const detallesInfo = await detalleOrdenCompraDAO.consultarDetallesPorOrden(id_orden);
+    const detallesInfo = await DetalleOrdenCompraService.consultarDetallesPorOrden(id_orden);
     return detallesInfo.resumen.total;
   }
 

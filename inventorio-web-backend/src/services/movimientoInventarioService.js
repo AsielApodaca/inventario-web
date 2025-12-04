@@ -1,5 +1,7 @@
 import movimientoInventarioDAO from '../daos/movimientoinventario.dao.js';
 import inventarioDAO from '../daos/inventario.dao.js';
+import almacenDAO from '../daos/almacen.dao.js';
+import ubicacionDAO from '../daos/ubicacion.dao.js';
 import {Op} from 'sequelize';
 
 class MovimientoInventarioService {
@@ -9,6 +11,12 @@ class MovimientoInventarioService {
     AJUSTE: 'ajuste',
     DEVOLUCION: 'devolucion',
     TRANSFERENCIA: 'transferencia'
+  };
+
+  ESTADOS = {
+    PENDIENTE: 'pendiente',
+    PROCESADO: 'procesado',
+    CANCELADO: 'cancelado'
   };
 
   async registrarMovimiento(data, id_usuario) {
@@ -31,6 +39,7 @@ class MovimientoInventarioService {
     data.id_usuario = id_usuario;
     data.fecha_movimiento = new Date();
     data.motivo = data.motivo.trim();
+    data.estado = this.ESTADOS.PENDIENTE;
 
     if (data.tipo_movimiento === this.TIPOS_MOVIMIENTO.SALIDA) {
       const stockInfo = await inventarioDAO.consultarStockPorProducto(data.id_producto);
@@ -42,6 +51,134 @@ class MovimientoInventarioService {
     }
 
     return await movimientoInventarioDAO.registrarMovimiento(data);
+  }
+
+  async procesarMovimiento(id_movimiento, id_ubicacion) {
+    // Validar que el movimiento existe
+    const movimiento = await movimientoInventarioDAO.obtenerPorId(id_movimiento);
+    if (!movimiento) {
+      throw new Error('Movimiento no encontrado');
+    }
+
+    // Validar que el movimiento esté en estado pendiente
+    if (movimiento.estado !== this.ESTADOS.PENDIENTE) {
+      throw new Error(`El movimiento no puede ser procesado. Estado actual: ${movimiento.estado}`);
+    }
+
+    // Validar que se proporcione una ubicación
+    if (!id_ubicacion || isNaN(id_ubicacion)) {
+      throw new Error('ID de ubicación inválido');
+    }
+
+    // Validar que la ubicación existe
+    const ubicacion = await ubicacionDAO.obtenerPorId(id_ubicacion);
+    if (!ubicacion) {
+      throw new Error('La ubicación no existe');
+    }
+
+    // Validar que el almacén existe (si está en el movimiento)
+    let id_almacen = movimiento.id_almacen;
+    if (!id_almacen) {
+      // Si no tiene almacén, usar el de la ubicación
+      id_almacen = ubicacion.id_almacen;
+    }
+
+    if (!id_almacen) {
+      throw new Error('El movimiento debe tener un almacén asociado');
+    }
+
+    const almacen = await almacenDAO.obtenerPorId(id_almacen);
+    if (!almacen) {
+      throw new Error('El almacén no existe');
+    }
+
+    // Validar que la ubicación pertenece al almacén
+    if (ubicacion.id_almacen !== id_almacen) {
+      throw new Error('La ubicación no pertenece al almacén especificado');
+    }
+
+    // Procesar el movimiento según su tipo
+    let inventarioActualizado = null;
+
+    if (movimiento.tipo_movimiento === this.TIPOS_MOVIMIENTO.ENTRADA || 
+        movimiento.tipo_movimiento === this.TIPOS_MOVIMIENTO.DEVOLUCION) {
+      // Para entradas y devoluciones, incrementar el inventario
+      const inventarioExistente = await inventarioDAO.buscarPorProductoYUbicacion(
+        movimiento.id_producto, 
+        id_ubicacion
+      );
+
+      if (inventarioExistente) {
+        // Si ya existe, incrementar la cantidad
+        inventarioActualizado = await inventarioDAO.incrementarCantidad(
+          inventarioExistente.id, 
+          movimiento.cantidad
+        );
+      } else {
+        // Si no existe, crear nuevo registro directamente con el DAO
+        inventarioActualizado = await inventarioDAO.registrarProductoEnUbicacion({
+          id_producto: movimiento.id_producto,
+          id_ubicacion: id_ubicacion,
+          cantidad: movimiento.cantidad
+        });
+      }
+    } else if (movimiento.tipo_movimiento === this.TIPOS_MOVIMIENTO.SALIDA) {
+      // Para salidas, decrementar el inventario
+      const inventarioExistente = await inventarioDAO.buscarPorProductoYUbicacion(
+        movimiento.id_producto, 
+        id_ubicacion
+      );
+
+      if (!inventarioExistente) {
+        throw new Error('No hay inventario disponible en esta ubicación para este producto');
+      }
+
+      const cantidadDisponible = inventarioExistente.cantidad || 0;
+      if (cantidadDisponible < movimiento.cantidad) {
+        throw new Error(`Stock insuficiente en la ubicación. Disponible: ${cantidadDisponible}, Requerido: ${movimiento.cantidad}`);
+      }
+
+      const nuevaCantidad = cantidadDisponible - movimiento.cantidad;
+      inventarioActualizado = await inventarioDAO.actualizarCantidad(
+        inventarioExistente.id, 
+        nuevaCantidad
+      );
+    } else if (movimiento.tipo_movimiento === this.TIPOS_MOVIMIENTO.AJUSTE) {
+      // Para ajustes, actualizar directamente
+      const inventarioExistente = await inventarioDAO.buscarPorProductoYUbicacion(
+        movimiento.id_producto, 
+        id_ubicacion
+      );
+
+      if (!inventarioExistente) {
+        throw new Error('No existe inventario en esta ubicación para ajustar');
+      }
+
+      const nuevaCantidad = movimiento.cantidad;
+      if (nuevaCantidad < 0) {
+        throw new Error('La cantidad del ajuste no puede ser negativa');
+      }
+
+      inventarioActualizado = await inventarioDAO.actualizarCantidad(
+        inventarioExistente.id, 
+        nuevaCantidad
+      );
+    }
+
+    // Actualizar el movimiento con la ubicación y cambiar su estado a procesado
+    await movimientoInventarioDAO.actualizarEstado(id_movimiento, this.ESTADOS.PROCESADO);
+    
+    // Actualizar también id_almacen e id_ubicacion en el movimiento
+    const movimientoActualizado = await movimientoInventarioDAO.obtenerPorId(id_movimiento);
+    await movimientoActualizado.update({
+      id_almacen: id_almacen,
+      id_ubicacion: id_ubicacion
+    });
+
+    return {
+      movimiento: movimientoActualizado,
+      inventario: inventarioActualizado
+    };
   }
 
   async consultarPorProducto(id_producto, opciones = {}) {
@@ -86,7 +223,7 @@ class MovimientoInventarioService {
     };
   }
 
-  async consultarPorFecha(fecha_inicio, fecha_fin, opciones = {}) {
+  async consultarPorFecha(fecha_inicio, fecha_fin) {
     if (!fecha_inicio || !fecha_fin) {
       throw new Error('Las fechas de inicio y fin son requeridas');
     }

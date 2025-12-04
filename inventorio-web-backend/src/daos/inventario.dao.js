@@ -10,6 +10,15 @@ class InventarioDAO {
     }
   }
 
+  async obtenerStockTotal() {
+    try {
+      const data = await Inventario.findAll();
+      return data || 0;
+    } catch (error) {
+      throw error;
+    }
+  }
+
   async consultarStockPorProducto(id_producto) {
     try {
       return await Inventario.findAll({ where: { id_producto }, include: ['ubicacion'] });
@@ -31,6 +40,27 @@ class InventarioDAO {
       const inventario = await Inventario.findByPk(id);
       if (!inventario) return null;
       return await inventario.update({ cantidad });
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async buscarPorProductoYUbicacion(id_producto, id_ubicacion) {
+    try {
+      return await Inventario.findOne({ 
+        where: { id_producto, id_ubicacion } 
+      });
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async incrementarCantidad(id, cantidad) {
+    try {
+      const inventario = await Inventario.findByPk(id);
+      if (!inventario) return null;
+      const nuevaCantidad = (inventario.cantidad || 0) + cantidad;
+      return await inventario.update({ cantidad: nuevaCantidad });
     } catch (error) {
       throw error;
     }

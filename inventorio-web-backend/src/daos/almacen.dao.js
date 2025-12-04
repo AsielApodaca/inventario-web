@@ -27,6 +27,14 @@ class AlmacenDAO {
       throw error;
     }
   }
+
+  async obtenerPorId(id) {
+    try {
+      return await Almacen.findByPk(id);
+    } catch (error) {
+      throw error;
+    }
+  }
 }
 
 export default new AlmacenDAO();

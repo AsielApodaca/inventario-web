@@ -1,6 +1,18 @@
 import inventarioDAO from '../daos/inventario.dao.js';
 
 class InventarioService {
+
+  async obtenerStockTotal() {
+    try {
+      // Llamamos al método eficiente .sum() del DAO
+      const total = await inventarioDAO.obtenerStockTotal();
+      return total;
+    } catch (error) {
+      console.error("Error en InventarioService.obtenerStockTotalGlobal:", error);
+      throw new Error('Error al calcular el stock total del sistema');
+    }
+  }
+
   async registrarProductoEnUbicacion(data) {
     if (!data.id_producto || isNaN(data.id_producto)) {
       throw new Error('ID de producto inválido');
