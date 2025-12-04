@@ -19,6 +19,7 @@
       background: #f9fafb;
       flex: 1; /* Ocupa el espacio restante */
       box-sizing: border-box;
+      /* Removemos min-height aquí para dejar que el padre controle el scroll */
     }
   </style>
 </head>
@@ -32,7 +33,8 @@
 
   <app-sidebar></app-sidebar>
   
-  <div style="flex: 1; display: flex; flex-direction: column; min-width: 0;"> <app-header></app-header>
+  <div style="flex: 1; display: flex; flex-direction: column; min-width: 0; height: 100vh; overflow-y: auto;"> 
+    <app-header></app-header>
     <main id="main-content">
       <dashboard-mfe></dashboard-mfe>
     </main>
@@ -49,9 +51,8 @@
   <script type="module" src="services/movementService.js"></script>
   <script type="module" src="services/warehouseService.js"></script>
   <script type="module" src="services/supplierService.js"></script>
-  
-  <!-- Componentes principales -->
-  <script type="module" src="components/app-header.js"></script>
+  <script type="module" src="services/userService.js"></script>
+  <script type="module" src="services/categoryService.js"></script> <script type="module" src="components/app-header.js"></script>
   <script type="module" src="components/app-sidebar.js"></script>
   
   <!-- MFEs -->
