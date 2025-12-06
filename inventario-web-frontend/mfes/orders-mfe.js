@@ -4,6 +4,7 @@ import { SupplierService } from '../services/supplierService.js';
 import { ProductService } from '../services/productService.js';
 import { DetalleOrdenCompraService } from '../services/detalleOrdenCompraService.js';
 import { MovementService } from '../services/movementService.js';
+import { InventoryService } from '../services/inventoryService.js';
 
 class OrdersMFE extends HTMLElement {
   constructor() {
@@ -371,65 +372,173 @@ class OrdersMFE extends HTMLElement {
     tableBody.innerHTML = '';
 
     const startIndex = (this.currentPage - 1) * this.pageSize;
-    const endIndex = startIndex + this.pageSize;
-    const currentOrders = this.orders.slice(startIndex, endIndex);
+    const currentOrders = this.orders.slice(startIndex, startIndex + this.pageSize);
 
     if (this.orders.length === 0) {
-      tableBody.innerHTML = `
-        <tr>
-          <td colspan="6" class="text-center" style="padding: 40px; color: #9ca3af;">
-             No se encontraron órdenes.
-          </td>
-        </tr>`;
+      tableBody.innerHTML = `<tr><td colspan="6" class="text-center" style="padding: 40px; color: #9ca3af;">No se encontraron órdenes.</td></tr>`;
       this.renderPaginator();
       return;
     }
 
     currentOrders.forEach(order => {
       const tr = document.createElement('tr');
+      const estado = (order.estado || 'pendiente').toLowerCase();
+
+      // --- LÓGICA DEL MENÚ DE PROCESO ---
+      let popoverContent = '';
       
+      if (estado === 'pendiente') {
+          popoverContent = `
+            <div class="popover-header">Flujo de Aprobación</div>
+            <div class="process-step current">
+                <div class="step-dot"></div>
+                <div class="step-content">
+                    <span class="step-label">Creada / Pendiente</span>
+                    <button class="action-btn-flow" data-action="aprobada" data-id="${order.id}">
+                        Aprobar Orden &rarr;
+                    </button>
+                </div>
+            </div>
+            <div class="process-step future">
+                <div class="step-dot"></div>
+                <div class="step-content"><span class="step-label">Enviar a Proveedor</span></div>
+            </div>
+          `;
+      } else if (estado === 'aprobada') {
+          popoverContent = `
+            <div class="popover-header">Flujo de Envío</div>
+            <div class="process-step done">
+                <div class="step-dot"></div>
+                <div class="step-content"><span class="step-label">Aprobada</span></div>
+            </div>
+            <div class="process-step current">
+                <div class="step-dot"></div>
+                <div class="step-content">
+                    <span class="step-label">Lista para enviar</span>
+                    <button class="action-btn-flow" data-action="enviada" data-id="${order.id}">
+                        Marcar Enviada &rarr;
+                    </button>
+                </div>
+            </div>
+          `;
+      } else if (estado === 'enviada') {
+          popoverContent = `
+            <div class="popover-header">En Tránsito</div>
+            <div class="process-step done"><div class="step-dot"></div><div class="step-content"><span class="step-label">Aprobada</span></div></div>
+            <div class="process-step done"><div class="step-dot"></div><div class="step-content"><span class="step-label">Enviada</span></div></div>
+            <div class="process-step current">
+                <div class="step-dot" style="background:#f59e0b; border-color:#f59e0b;"></div>
+                <div class="step-content">
+                    <span class="step-label" style="color:#d97706;">Esperando Recepción</span>
+                    <div style="font-size:0.75rem; color:#6b7280; margin-top:4px; line-height:1.3;">
+                        Para recibir la mercancía, usa el botón de <b>Ver Detalles</b> (ojo).
+                    </div>
+                </div>
+            </div>
+          `;
+      } else {
+          // Cancelada o Recibida
+          popoverContent = `<div class="text-sub text-center" style="font-size:0.8rem;">El flujo ha finalizado (${estado}).</div>`;
+      }
+
       tr.innerHTML = `
-        <td>
-            <span class="font-mono text-main">#${order.codigo || order.id}</span>
-        </td>
-        <td>
-            <div class="text-main" style="font-weight:600;">${this.getSupplierLabel(order.id_proveedor)}</div>
-        </td>
-        <td class="text-center text-sub">
-            ${(order.fecha_orden || order.createdAt || '').slice(0, 10)}
-        </td>
-        <td class="text-right">
-            <span class="amount">${this.formatCurrency(order.total)}</span>
-        </td>
-        <td class="text-center">
-            ${this.getStatusBadge(order)}
-        </td>
+        <td><span class="font-mono text-main">#${order.codigo || order.id}</span></td>
+        <td><div class="text-main" style="font-weight:600;">${this.getSupplierLabel(order.id_proveedor)}</div></td>
+        <td class="text-center text-sub">${(order.fecha_orden || order.createdAt || '').slice(0, 10)}</td>
+        <td class="text-right"><span class="amount">${this.formatCurrency(order.total)}</span></td>
+        <td class="text-center">${this.getStatusBadge(order)}</td>
         <td>
           <div class="actions-cell">
-            <button class="icon-btn edit btn-edit" title="Editar Orden">
+            
+            <div class="relative-container">
+                <button class="icon-btn btn-flow" title="Gestionar Estado" style="${['cancelada','recibida'].includes(estado) ? 'opacity:0.3;' : 'color:#3b82f6; background:#eff6ff;'}">
+                    <svg class="icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                </button>
+                <div class="status-popover">
+                    ${popoverContent}
+                </div>
+            </div>
+
+            <button class="icon-btn edit btn-edit" title="Editar Contenido">
               <svg class="icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
             </button>
             
-            <button class="icon-btn view btn-details" title="Ver Detalles">
+            <button class="icon-btn view btn-details" title="Ver / Recibir">
               <svg class="icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
             </button>
           </div>
         </td>
       `;
       
+      // --- EVENT LISTENERS ---
+      
+      // A. Ver detalles
       tr.querySelector('.btn-details').onclick = () => this.showOrderDetailModal(order.id);
       
+      // B. Editar (Solo si pendiente)
       const editBtn = tr.querySelector('.btn-edit');
-      const estado = (order.estado || '').toLowerCase();
       if(estado !== 'pendiente') {
           editBtn.style.opacity = '0.3';
           editBtn.style.cursor = 'not-allowed';
       } else {
-          editBtn.onclick = () => alert("Editar orden " + order.id);
+          // Aquí iría tu lógica de abrir modal de editar contenido
+          editBtn.onclick = () => alert("Aquí abrirías el modal para editar productos/cantidades de la orden " + order.id);
+      }
+
+      // C. Lógica del Menú Flotante (Flow)
+      const btnFlow = tr.querySelector('.btn-flow');
+      const popover = tr.querySelector('.status-popover');
+      
+      if(!['cancelada', 'recibida'].includes(estado)) {
+          btnFlow.onclick = (e) => {
+             e.stopPropagation();
+             
+             // 1. Cerrar cualquier otro popover abierto primero
+             this.shadowRoot.querySelectorAll('.status-popover.show').forEach(p => {
+                 if(p !== popover) p.classList.remove('show');
+             });
+
+             // 2. Si ya está abierto, lo cerramos y terminamos
+             if (popover.classList.contains('show')) {
+                 popover.classList.remove('show');
+                 return;
+             }
+
+             // 3. CÁLCULO DE POSICIÓN MÁGICO (Position Fixed)
+             const rect = btnFlow.getBoundingClientRect();
+             const popoverWidth = 240; // Debe coincidir con el width del CSS
+             
+             // Posicionamos justo debajo del botón
+             popover.style.top = `${rect.bottom + 5}px`;
+             
+             // Alineamos a la derecha del botón (restamos el ancho del popover)
+             // Math.max evita que se salga por la izquierda de la pantalla
+             popover.style.left = `${Math.max(10, rect.right - popoverWidth)}px`;
+
+             // 4. Mostrar
+             popover.classList.add('show');
+          };
+      }
+
+      // D. Botones dentro del popover (Aprobar / Enviar)
+      const actionBtn = popover.querySelector('.action-btn-flow');
+      if(actionBtn) {
+          actionBtn.onclick = async (e) => {
+              const newStatus = e.target.getAttribute('data-action');
+              const orderId = e.target.getAttribute('data-id');
+              await this.handleStatusChange(orderId, newStatus);
+          };
       }
 
       tableBody.appendChild(tr);
     });
+    
+    // Cerrar popovers al hacer click fuera (dentro del shadowDOM)
+    this.shadowRoot.onclick = (e) => {
+        if (!e.target.closest('.relative-container')) {
+            this.shadowRoot.querySelectorAll('.status-popover.show').forEach(p => p.classList.remove('show'));
+        }
+    };
 
     this.renderPaginator();
   }
@@ -518,80 +627,98 @@ class OrdersMFE extends HTMLElement {
 
         <div id="detail-body">
             
-            <div class="info-grid">
-                <div class="info-item">
-                    <span class="label">Proveedor</span>
-                    <span class="value" style="font-weight:600; color:#1f2937;">
-                        ${this.getSupplierLabel(orderData.id_proveedor)}
+          <div class="info-grid">
+              <div class="info-item">
+                  <span class="label">Proveedor</span>
+                  <span class="value" style="font-weight:600; color:#1f2937;">
+                      ${this.getSupplierLabel(orderData.id_proveedor)}
+                  </span>
+              </div>
+              <div class="info-item">
+                    <span class="label">Estado</span>
+                    <div style="margin-top:4px;">${this.renderStatusPill(orderData.estado)}</div>
+              </div>
+              <div class="info-item">
+                    <span class="label">Total</span>
+                    <span class="value" style="font-size:1.1rem; color:#111827;">
+                      ${this.formatCurrency(total)}
                     </span>
-                </div>
-                <div class="info-item">
-                     <span class="label">Estado</span>
-                     <div style="margin-top:4px;">${this.renderStatusPill(orderData.estado)}</div>
-                </div>
-                <div class="info-item">
-                     <span class="label">Total</span>
-                     <span class="value" style="font-size:1.1rem; color:#111827;">
-                        ${this.formatCurrency(total)}
-                     </span>
-                </div>
-            </div>
+              </div>
+          </div>
 
-            <div class="products-section">
-                <h4 style="margin:0 0 15px 0; font-size:1rem; color:#374151;">Productos (${detailList.length})</h4>
-                ${detailList.length > 0 ? `
-                  <div class="table-responsive">
-                    <table>
-                      <thead>
+          <div class="products-section">
+              <h4 style="margin:0 0 15px 0; font-size:1rem; color:#374151;">Productos (${detailList.length})</h4>
+              ${detailList.length > 0 ? `
+                <div class="table-responsive">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Producto</th>
+                        <th class="text-center">Cant.</th>
+                        <th class="text-right">Precio</th>
+                        <th class="text-right">Subtotal</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${detailList.map(item => `
                         <tr>
-                          <th>Producto</th>
-                          <th class="text-center">Cant.</th>
-                          <th class="text-right">Precio</th>
-                          <th class="text-right">Subtotal</th>
+                          <td>
+                              <div style="font-weight:500; color:#111827;">
+                                  ${item.producto?.nombre || item.nombre_producto || 'Item sin nombre'}
+                              </div>
+                          </td>
+                          <td class="text-center" style="font-weight:600;">${item.cantidad}</td>
+                          <td class="text-right">${this.formatCurrency(item.precio_unitario)}</td>
+                          <td class="text-right" style="font-weight:600;">
+                              ${this.formatCurrency(item.subtotal || (item.cantidad * item.precio_unitario))}
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        ${detailList.map(item => `
-                          <tr>
-                            <td>
-                                <div style="font-weight:500; color:#111827;">
-                                    ${item.producto?.nombre || item.nombre_producto || 'Item sin nombre'}
-                                </div>
-                            </td>
-                            <td class="text-center" style="font-weight:600;">${item.cantidad}</td>
-                            <td class="text-right">${this.formatCurrency(item.precio_unitario)}</td>
-                            <td class="text-right" style="font-weight:600;">
-                                ${this.formatCurrency(item.subtotal || (item.cantidad * item.precio_unitario))}
-                            </td>
-                          </tr>
-                        `).join('')}
-                      </tbody>
-                    </table>
-                  </div>
-                  <div style="text-align:right; margin-top:15px; font-weight:bold; font-size:1.1rem;">
-                    Total Final: ${this.formatCurrency(total)}
-                  </div>
-                ` : `<p style="text-align:center;color:#666;">No hay productos.</p>`}
-            </div>
-
-            <div id="reception-zone" style="margin-top:25px; background:#f3f4f6; padding:20px; border-radius:12px; border:1px solid #e5e7eb;">
-                <h4 style="margin:0 0 10px 0; color:#111827;">Recepción de Mercancía</h4>
-                
-                <div style="display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap;">
-                    <div style="flex-grow:1;">
-                        <label style="display:block; font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px;">
-                            Seleccione Almacén de Destino:
-                        </label>
-                        <select id="receive-warehouse-select" style="width:100%; padding:10px; border-radius:8px; border:1px solid #d1d5db;">
-                            <option value="">-- Seleccione un Almacén --</option>
-                            ${warehouseOptionsHtml}
-                        </select>
-                    </div>
-                    <button id="btn-receive" class="btn-primary">
-                        Confirmar Entrada
-                    </button>
+                      `).join('')}
+                    </tbody>
+                  </table>
                 </div>
+                <div style="text-align:right; margin-top:15px; font-weight:bold; font-size:1.1rem;">
+                  Total Final: ${this.formatCurrency(total)}
+                </div>
+              ` : `<p style="text-align:center;color:#666;">No hay productos.</p>`}
+          </div>
+
+          <div id="reception-zone" style="margin-top:25px; background:#f3f4f6; padding:20px; border-radius:12px; border:1px solid #e5e7eb;">
+            <h4 style="margin:0 0 15px 0; color:#111827; display:flex; align-items:center; gap:8px;">
+                <svg style="width:20px;height:20px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+                Recepción y Ubicación
+            </h4>
+            
+            <div style="display:grid; grid-template-columns: 1fr 1fr auto; gap:15px; align-items:end;">
+                
+                <div>
+                    <label style="display:block; font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px;">
+                        Almacén de Destino <span style="color:red">*</span>
+                    </label>
+                    <select id="receive-warehouse-select" style="width:100%; padding:10px; border-radius:8px; border:1px solid #d1d5db; background:white;">
+                        <option value="">-- Seleccione Almacén --</option>
+                        ${warehouseOptionsHtml}
+                    </select>
+                </div>
+
+                <div>
+                    <label style="display:block; font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px;">
+                        Pasillo / Estante <span style="color:red">*</span>
+                    </label>
+                    <select id="receive-location-select" disabled style="width:100%; padding:10px; border-radius:8px; border:1px solid #d1d5db; background:#e5e7eb; cursor:not-allowed;">
+                        <option value="">-- Primero elija Almacén --</option>
+                    </select>
+                </div>
+
+                <button id="btn-receive" class="btn-primary" style="height:42px; padding:0 25px;">
+                    Confirmar Entrada
+                </button>
             </div>
+            
+            <p style="font-size:0.75rem; color:#6b7280; margin-top:10px; line-height:1.4;">
+                * Se generará un <b>Movimiento de Entrada</b> incrementando el stock en la ubicación seleccionada.
+            </p>
+          </div>
 
         </div>
       </div>
@@ -626,62 +753,119 @@ class OrdersMFE extends HTMLElement {
     modal.querySelector(".modal-overlay").onclick = () => modal.remove();
 
     // LÓGICA DE RECEPCIÓN
-    const btnReceive = modal.querySelector("#btn-receive");
+    /* ... DENTRO DE showOrderDetailModal, DESPUÉS DE appendChild(modal) ... */
+
     const warehouseSelect = modal.querySelector("#receive-warehouse-select");
-    const receptionZone = modal.querySelector("#reception-zone");
+    const locationSelect = modal.querySelector("#receive-location-select");
+    const btnReceive = modal.querySelector("#btn-receive");
 
-    // Ocultar zona de recepción si ya no es pendiente
-    const estadoActual = (orderData.estado || '').toLowerCase();
-    if (['recibida', 'cancelada', 'completada'].includes(estadoActual)) {
-        receptionZone.style.display = 'none';
-    }
+    // --- 1. LÓGICA EN CASCADA (Almacén -> Ubicaciones) ---
+    warehouseSelect.onchange = async () => {
+        const warehouseId = warehouseSelect.value;
+        
+        // Resetear selector de ubicaciones
+        locationSelect.innerHTML = '<option value="">Cargando pasillos...</option>';
+        locationSelect.disabled = true;
+        locationSelect.style.background = "#e5e7eb";
 
-    // ... dentro de showOrderDetailModal ...
-
-    btnReceive.onclick = async () => {
-        // 1. VALIDACIÓN
-        const selectedWarehouseId = warehouseSelect.value;
-        if (!selectedWarehouseId) {
-            alert("⚠️ Debes seleccionar un Almacén de Destino.");
-            warehouseSelect.focus();
+        if (!warehouseId) {
+            locationSelect.innerHTML = '<option value="">-- Primero elija Almacén --</option>';
             return;
         }
 
-        if(!confirm(`¿Recibir mercancía en el almacén seleccionado?\nEsta acción aumentará el stock.`)) return;
+        try {
+            // AQUÍ LLAMAMOS A LAS UBICACIONES DEL ALMACÉN
+            // Asumiendo que WarehouseService tiene un método getLocations o similar
+            // Si tu respuesta devuelve { data: [...] } ajusta según corresponda
+            const res = await WarehouseService.getUbicaciones(warehouseId); 
+            const locations = res.data || res; // Ajustar según tu API
+
+            if (locations && locations.length > 0) {
+                locationSelect.innerHTML = '<option value="">-- Seleccione Ubicación --</option>' + 
+                    locations.map(loc => `<option value="${loc.id}">${loc.pasillo}-${loc.estante}-${loc.nivel}</option>`).join('');
+                
+                locationSelect.disabled = false;
+                locationSelect.style.background = "white";
+                locationSelect.style.cursor = "pointer";
+            } else {
+                locationSelect.innerHTML = '<option value="">Sin ubicaciones registradas</option>';
+            }
+        } catch (err) {
+            console.error(err);
+            locationSelect.innerHTML = '<option value="">Error cargando ubicaciones</option>';
+        }
+    };
+
+    // --- 2. LÓGICA DE RECEPCIÓN (CREAR MOVIMIENTOS) ---
+    // --- 2. LÓGICA DE RECEPCIÓN (MOVIMIENTOS + INVENTARIO) ---
+    btnReceive.onclick = async () => {
+        const idAlmacen = warehouseSelect.value;
+        const idUbicacion = locationSelect.value;
+
+        // Validaciones
+        if (!idAlmacen) {
+            alert("⚠️ Selecciona un almacén.");
+            return warehouseSelect.focus();
+        }
+        if (!idUbicacion) {
+            alert("⚠️ Selecciona un pasillo o estante para organizar el stock.");
+            return locationSelect.focus();
+        }
+
+        if(!confirm("¿Confirmar recepción de mercancía?\nEsto aumentará el inventario en la ubicación seleccionada.")) return;
 
         try {
             btnReceive.disabled = true;
-            btnReceive.textContent = "Procesando...";
+            btnReceive.textContent = "Guardando en inventario...";
 
+            // Verificamos que haya items
             if(detailList.length > 0) {
-                const movePromises = detailList.map(d => MovementService.createEntry({
-                    id_producto: d.id_producto || d.producto?.id,
-                    id_almacen: parseInt(selectedWarehouseId),
-                    cantidad: d.cantidad || d.qty,
-                    tipo_movimiento: "entrada",
-                    referencia: String(orderData.id),
-                    motivo: `Recepción OC #${orderData.id}`
-                }));
-                await Promise.all(movePromises);
+                
+                // Usamos map con async para procesar cada producto
+                const promises = detailList.map(async (d) => {
+                    const prodId = d.id_producto || d.producto?.id;
+                    const cant = parseFloat(d.cantidad || d.qty);
+                    
+                    // A. CREAR MOVIMIENTO (Historial)
+                    await MovementService.createEntry({
+                        id_producto: prodId,
+                        id_almacen: parseInt(idAlmacen),
+                        id_ubicacion: parseInt(idUbicacion),
+                        cantidad: cant,
+                        tipo_movimiento: "entrada",
+                        referencia: String(orderData.id),
+                        motivo: `Recepción OC #${orderData.codigo || orderData.id}`
+                    });
+
+                    // B. ACTUALIZAR INVENTARIO (Saldo Físico)
+                    // Intentamos registrarlo. Si ya existe en ese estante, actualizamos.
+                    try {
+                        await InventoryService.create({
+                            id_producto: prodId,
+                            id_ubicacion: parseInt(idUbicacion),
+                            cantidad: cant,
+                            id_almacen: parseInt(idAlmacen)
+                        });
+                    } catch (errInventario) {
+                        throw new Error(`Error guardando inventario para producto ${prodId}: ${errInventario.message}`);
+                        
+                    }
+                });
+                
+                // Esperamos a que TODAS las promesas (movimientos e inventarios) terminen
+                await Promise.all(promises);
             }
 
-            // 2. ACTUALIZAR ESTADO (CORREGIDO)
-            // El backend exige la propiedad "nuevoEstado" en el cuerpo de la petición.
-            await OrderService.updateStatus(orderId, { 
-                nuevoEstado: "recibida" 
-            });
+            // Actualizar estado de la orden
+            await OrderService.updateStatus(orderId, { nuevoEstado: "recibida" });
 
-            alert("✅ Orden recibida correctamente.");
+            alert("✅ Mercancía recibida e inventario actualizado correctamente.");
             modal.remove();
-            setTimeout(() => this.loadOrders(), 500);
+            this.loadOrders();
 
-        } catch(e) {
-            console.error("Error al recibir:", e);
-            // Mostrar mensaje detallado del backend si existe
-            const msg = e.response?.data?.message || e.message;
-            const validationDetails = e.response?.data?.errors?.[0]?.msg; // Extraer detalle específico
-            
-            alert(`❌ Error: ${msg} ${validationDetails ? `(${validationDetails})` : ''}`);
+        } catch (e) {
+            console.error("Error general en recepción:", e);
+            alert("❌ Error al procesar: " + (e.message || "Revise la consola para más detalles"));
             
             btnReceive.disabled = false;
             btnReceive.textContent = "Reintentar";
@@ -758,6 +942,25 @@ class OrdersMFE extends HTMLElement {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount||0);
   }
 
+  async handleStatusChange(orderId, nuevoEstado) {
+      if(!confirm(`¿Estás seguro de cambiar el estado a "${nuevoEstado.toUpperCase()}"?`)) return;
+
+      try {
+          // Usamos el servicio que ya tienes importado
+          await OrderService.updateStatus(orderId, { nuevoEstado });
+          
+          // Feedback visual rápido
+          alert("Estado actualizado correctamente");
+          
+          // Recargar tabla
+          this.loadOrders();
+          
+      } catch (error) {
+          console.error(error);
+          alert("Error al actualizar estado: " + (error.message || "Error desconocido"));
+      }
+  }
+
   render() {
     this.shadowRoot.innerHTML = `
       <style>
@@ -807,6 +1010,31 @@ class OrdersMFE extends HTMLElement {
         .page-btn { background: white; border: 1px solid #d1d5db; padding: 6px 14px; border-radius: 6px; font-weight: 500; cursor: pointer; color: #374151; transition: all 0.2s; }
         .page-btn:hover:not(:disabled) { border-color: #9ca3af; background: #f9fafb; }
         .page-btn:disabled { opacity: 0.5; cursor: not-allowed; background: #f3f4f6; }
+        .relative-container { position: relative; }
+
+        .status-popover {display: none;position: fixed;width: 220px;background: white;border-radius: 12px;box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);border: 1px solid #e5e7eb;z-index: 9999;padding: 16px;margin-top: 8px;text-align: left;}
+        .status-popover.show { display: block; animation: fadeIn 0.2s ease-out; }
+
+        /* Título */
+        .popover-header {font-size: 0.7rem;text-transform: uppercase;color: #9ca3af;font-weight: 700;margin-bottom: 12px;letter-spacing: 0.05em;}
+        
+        /* Pasos del proceso */
+        .process-step { display: flex; gap: 12px; padding-bottom: 12px; position: relative; }.process-step:not(:last-child)::after {content: ''; position: absolute; left: 7px; top: 20px; bottom: 0;width: 2px; background-color: #f3f4f6;}
+        
+        /* Puntos indicadores */
+        .step-dot {width: 16px; height: 16px; border-radius: 50%;background: white; border: 2px solid #e5e7eb;flex-shrink: 0; z-index: 1; margin-top: 2px;}
+        .process-step.done .step-dot { background: #10b981; border-color: #10b981; } /* Verde */
+        .process-step.current .step-dot { background: #3b82f6; border-color: #3b82f6; } /* Azul */
+        
+        /* Textos y Botones */
+        .step-content { flex-grow: 1; }
+        .step-label { font-size: 0.85rem; color: #374151; font-weight: 500; display: block; }
+        .process-step.done .step-label { color: #10b981; text-decoration: line-through; opacity: 0.8; }
+        .process-step.future .step-label { color: #9ca3af; }
+        .action-btn-flow {margin-top: 4px;width: 100%;background: #3b82f6; color: white;border: none; padding: 6px 10px;border-radius: 6px; font-size: 0.8rem; font-weight: 600;cursor: pointer; text-align: center;transition: background 0.2s;}
+        .action-btn-flow:hover { background: #2563eb; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+      
       </style>
 
       <div class="top-bar">

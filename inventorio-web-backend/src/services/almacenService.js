@@ -23,7 +23,8 @@ class AlmacenService {
       id: almacen.id,
       nombre: almacen.nombre,
       direccion: almacen.direccion,
-      activo: almacen.activo ?? true
+      activo: almacen.activo ?? true,
+      responsable: almacen.responsable     
     }));
   }
 

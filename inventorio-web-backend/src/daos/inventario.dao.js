@@ -10,6 +10,15 @@ class InventarioDAO {
     }
   }
 
+  async obtenerStockTotal() {
+    try {
+      const data = await Inventario.findAll();
+      return data || 0;
+    } catch (error) {
+      throw error;
+    }
+  }
+
   async consultarStockPorProducto(id_producto) {
     try {
       return await Inventario.findAll({ where: { id_producto }, include: ['ubicacion'] });

@@ -1,5 +1,6 @@
 import { ProductService } from "../services/productService.js"
 import { OrderService } from "../services/orderService.js"
+import { InventoryService } from "../services/inventoryService.js"
 
 class DashboardMFE extends HTMLElement {
   constructor() {
@@ -20,22 +21,53 @@ class DashboardMFE extends HTMLElement {
 
       // 2. Llamada paralela a los servicios
       // Nota: Tus servicios ya retornan el array limpio [], así que no necesitamos .data
-      const [products, orders] = await Promise.all([
+      const [products, orders, inventory] = await Promise.all([
         ProductService.getAll(),
-        OrderService.getAll()
+        OrderService.getAll(),
+        InventoryService.getStockTotal()
       ])
 
       console.log("Dashboard Data:", { products, orders });
 
+
+      const listaInventario = inventory.data.data.total || inventory; 
+
+// --- AQUÍ EMPIEZA EL CÁLCULO ---
+
+      // 1. Preparamos los precios
+      const productPriceMap = {};
+      products.forEach(p => productPriceMap[p.id] = Number(p.precio_compra) || 0);
+
+      // 2. Variables acumuladoras
+      let totalPiezas = 0;
+      let totalDinero = 0;
+
+      // 3. El ciclo FOR
+      listaInventario.forEach(row => {
+          // Convertimos a número por seguridad
+          const qty = Number(row.cantidad); 
+          const prodId = row.id_producto;
+          
+          // Sumar cantidad física
+          if (!isNaN(qty)) {
+              totalPiezas += qty;
+              
+              // Sumar valor monetario (Cantidad * Precio del producto asociado)
+              const precio = productPriceMap[prodId] || 0;
+              totalDinero += (qty * precio);
+          }
+      });
+      console.log("Total Piezas:", totalPiezas);
+      console.log("Total Dinero:", totalDinero);
       // 3. Cálculos en tiempo real
 
       // A) Total Productos
       const totalProducts = products.length;
 
       // B) Stock Bajo (stock <= stock_minimo)
-      const lowStockCount = products.filter(p => {
-          return Number(p.stock) <= Number(p.stock_minimo);
-      }).length;
+      // const lowStockCount = products.filter(p => {
+      //     return Number(p.stock) <= Number(p.stock_minimo);
+      // }).length;
 
       // C) Órdenes Pendientes
       const pendingOrders = orders.filter(o => o.estado === 'pendiente').length;
@@ -47,11 +79,14 @@ class DashboardMFE extends HTMLElement {
           return total + (precio * stock);
       }, 0);
 
+      console.log("GetAllInventory: ", inventory.data.data.total);
+      
+
       // 4. Actualizar el DOM
       this.updateElementText('total-products', totalProducts);
-      this.updateElementText('low-stock', lowStockCount);
+      this.updateElementText('low-stock', totalPiezas);
       this.updateElementText('pending-orders', pendingOrders);
-      this.updateElementText('inventory-value', this.formatCurrency(inventoryValue));
+      this.updateElementText('inventory-value', this.formatCurrency(totalDinero));
 
     } catch (error) {
       console.error("Dashboard fetch error:", error)
@@ -119,18 +154,18 @@ class DashboardMFE extends HTMLElement {
         <div class="card">
           <div class="metric-title">Total Productos</div>
           <div class="metric-value" id="total-products">0</div>
-          <div class="metric-trend trend-up">
-            <span>📦</span>
+          <div class="metric-trend">
+            <span>🧾</span>
             <span>En catálogo</span>
           </div>
         </div>
         
         <div class="card">
-          <div class="metric-title">Stock Bajo</div>
-          <div class="metric-value" id="low-stock" style="color: #e11d48;">0</div>
-          <div class="metric-trend trend-down">
-            <span>⚠️</span>
-            <span>Requieren atención</span>
+          <div class="metric-title">Inventario Total</div>
+          <div class="metric-value" id="low-stock">0</div>
+          <div class="metric-trend trend-up">
+            <span>📦</span>
+            <span>Productos en almacen</span>
           </div>
         </div>
         

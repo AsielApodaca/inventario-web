@@ -296,14 +296,22 @@ export const inventarioController = {
   // GET /api/inventario/stock-total
   getStockTotal: async (req, res, next) => {
     try {
-      // En una implementación real, esto llamaría a un método del service
-      // que calcule el stock total de todos los productos
-      return res.status(501).json({
-        status: 'error',
-        message: 'Funcionalidad de stock total no implementada en el servicio'
+      // 1. Llamamos al servicio
+      const totalStock = await InventarioService.obtenerStockTotal();
+
+      // 2. Respondemos con éxito
+      return res.status(200).json({
+        status: 'success',
+        message: 'Stock total calculado exitosamente',
+        data: {
+          total: totalStock // Este es el número entero (ej: 5430)
+        }
       });
+      
     } catch (error) {
+      // Pasamos el error al middleware de manejo de errores
       next(error);
     }
   }
+
 };

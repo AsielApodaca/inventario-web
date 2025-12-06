@@ -235,7 +235,7 @@ class ProductsMFE extends HTMLElement {
         // Convertir campos numéricos
         data.precio_compra = parseFloat(data.precio_compra);
         data.precio_venta = parseFloat(data.precio_venta);
-        data.stock = parseInt(data.stock);
+        data.stock = parseInt(data.cantidad);
         data.stock_minimo = parseInt(data.stock_minimo);
         // Enviar solo los ids seleccionados con los nombres correctos
         data.id_categoria = parseInt(data.categoria);
